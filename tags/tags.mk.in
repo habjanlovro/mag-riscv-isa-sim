@@ -1,0 +1,9 @@
+tags_subproject_deps = \
+	fesvr \
+	riscv \
+
+tags_srcs = \
+	tag_manager.cc
+
+tags_hdrs = \
+	tag_manager.h

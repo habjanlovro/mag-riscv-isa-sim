@@ -19,26 +19,10 @@ Spike supports the following RISC-V ISA features:
   - D extension, v2.2
   - Q extension, v2.2
   - C extension, v2.0
-  - Zbkb, Zbkc, Zbkx, Zknd, Zkne, Zknh, Zksed, Zksh scalar cryptography extensions (Zk, Zkn, and Zks groups), v1.0
-  - Zkr virtual entropy source emulation, v1.0
-  - V extension, v1.0 (_requires a 64-bit host_)
-  - P extension, v0.9.2
-  - Zba extension, v1.0
-  - Zbb extension, v1.0
-  - Zbc extension, v1.0
-  - Zbs extension, v1.0
   - Zfh and Zfhmin half-precision floating-point extensions, v1.0
-  - Zmmul integer multiplication extension, v1.0
-  - Zicbom, Zicbop, Zicboz cache-block maintenance extensions, v1.0
+  - Zmmul ie, Supervisor, and User modes, v1.11
   - Conformance to both RVWMO and RVTSO (Spike is sequentially consistent)
-  - Machine, Supervisor, and User modes, v1.11
-  - Hypervisor extension, v1.0
-  - Svnapot extension, v1.0
-  - Svpbmt extension, v1.0
-  - Svinval extension, v1.0
-  - CMO extension, v1.0
   - Debug v0.14
-  - Smepmp extension v1.0
 
 As a Spike extension, the remainder of the proposed
 [Bit-Manipulation Extensions](https://github.com/riscv/riscv-bitmanip)
@@ -54,21 +38,6 @@ ratified, but the original proposal contained some extra instructions
 To enable these extensions individually, use the Spike-custom
 extension names _XZbp_, _XZbs_, _XZbc_, and so on.
 
-Versioning and APIs
--------------------
-
-Projects are versioned primarily to indicate when the API has been extended or
-rendered incompatible.  In that spirit, Spike aims to follow the
-[SemVer](https://semver.org/spec/v2.0.0.html) versioning scheme, in which
-major version numbers are incremented when backwards-incompatible API changes
-are made; minor version numbers are incremented when new APIs are added; and
-patch version numbers are incremented when bugs are fixed in
-a backwards-compatible manner.
-
-Spike's principal public API is the RISC-V ISA.  _The C++ interface to Spike's
-internals is **not** considered a public API at this time_, and
-backwards-incompatible changes to this interface _will_ be made without
-incrementing the major version number.
 
 Build Steps
 ---------------
@@ -86,19 +55,6 @@ install path.
 If your system uses the `yum` package manager, you can substitute
 `yum install dtc` for the first step.
 
-Build Steps on OpenBSD
-----------------------
-
-Install bash, gmake, dtc, and use clang.
-
-    $ pkg_add bash gmake dtc
-    $ exec bash
-    $ export CC=cc; export CXX=c++
-    $ mkdir build
-    $ cd build
-    $ ../configure --prefix=$RISCV
-    $ gmake
-    $ [doas] make install
 
 Compiling and Running a Simple C Program
 -------------------------------------------
