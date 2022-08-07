@@ -16,6 +16,8 @@
 #include <fstream>
 #include "../VERSION"
 
+#include "manager.h"
+
 static void help(int exit_code = 1)
 {
   fprintf(stderr, "Spike RISC-V ISA Simulator " SPIKE_VERSION "\n\n");
@@ -75,6 +77,8 @@ static void help(int exit_code = 1)
   fprintf(stderr, "  --dm-no-halt-groups   Debug module won't support halt groups\n");
   fprintf(stderr, "  --dm-no-impebreak     Debug module won't support implicit ebreak in program buffer\n");
   fprintf(stderr, "  --blocksz=<size>      Cache block size (B) for CMO operations(powers of 2) [default 64]\n");
+
+  fprintf(stderr, "  --tag-file=<file>     Policy and tag description for information flow tracking\n");
 
   exit(exit_code);
 }
@@ -404,6 +408,16 @@ int main(int argc, char** argv)
     }
   });
 
+  FILE *tag_file = NULL;
+  std::shared_ptr<tag_manager_t> tag_manager;
+  parser.option(0, "tag-file", 1, [&](const char *s) {
+    try {
+      tag_manager = std::make_shared<tag_manager_t>(s);
+    } catch(std::runtime_error& err) {
+      std::cerr << err.what() << std::endl;
+    }
+  });
+
   auto argv1 = parser.parse(argv);
   std::vector<std::string> htif_args(argv1, (const char*const*)argv + argc);
 
@@ -488,6 +502,7 @@ int main(int argc, char** argv)
 #ifdef HAVE_BOOST_ASIO
       io_service_ptr, acceptor_ptr,
 #endif
+      tag_manager,
       cmd_file);
   std::unique_ptr<remote_bitbang_t> remote_bitbang((remote_bitbang_t *) NULL);
   std::unique_ptr<jtag_dtm_t> jtag_dtm(

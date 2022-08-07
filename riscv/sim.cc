@@ -38,6 +38,7 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
 #ifdef HAVE_BOOST_ASIO
              boost::asio::io_service *io_service_ptr, boost::asio::ip::tcp::acceptor *acceptor_ptr, // option -s
 #endif
+            const std::shared_ptr<tag_manager_t> tm,
              FILE *cmd_file) // needed for command line option --cmd
   : htif_t(args),
     isa(cfg->isa(), cfg->priv()),
@@ -60,6 +61,7 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
     histogram_enabled(false),
     log(false),
     remote_bitbang(NULL),
+    tag_manager(tm),
     debug_module(this, dm_config)
 {
   signal(SIGINT, &handle_signal);

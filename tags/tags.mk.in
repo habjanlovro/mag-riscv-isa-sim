@@ -3,7 +3,7 @@ tags_subproject_deps = \
 	riscv \
 
 tags_srcs = \
-	tag_manager.cc
+	manager.cc
 
 tags_hdrs = \
-	tag_manager.h
+	manager.h
