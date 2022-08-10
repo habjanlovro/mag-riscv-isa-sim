@@ -38,7 +38,7 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
 #ifdef HAVE_BOOST_ASIO
              boost::asio::io_service *io_service_ptr, boost::asio::ip::tcp::acceptor *acceptor_ptr, // option -s
 #endif
-            const std::shared_ptr<tag_manager_t> tm,
+             const std::shared_ptr<tag_memory_t> tm,
              FILE *cmd_file) // needed for command line option --cmd
   : htif_t(args),
     isa(cfg->isa(), cfg->priv()),
@@ -61,7 +61,7 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
     histogram_enabled(false),
     log(false),
     remote_bitbang(NULL),
-    tag_manager(tm),
+    tag_memory(tm),
     debug_module(this, dm_config)
 {
   signal(SIGINT, &handle_signal);
@@ -80,7 +80,7 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
 
   for (size_t i = 0; i < cfg->nprocs(); i++) {
     procs[i] = new processor_t(&isa, cfg->varch(), this, cfg->hartids()[i], halted,
-                               log_file.get(), sout_);
+                               log_file.get(), sout_, tm);
   }
 
   make_dtb();

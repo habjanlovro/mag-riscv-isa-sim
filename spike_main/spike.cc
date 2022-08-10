@@ -16,7 +16,7 @@
 #include <fstream>
 #include "../VERSION"
 
-#include "manager.h"
+#include "tag_manager.h"
 
 static void help(int exit_code = 1)
 {
@@ -409,10 +409,10 @@ int main(int argc, char** argv)
   });
 
   FILE *tag_file = NULL;
-  std::shared_ptr<tag_manager_t> tag_manager;
+  std::shared_ptr<tag_memory_t> tag_memory;
   parser.option(0, "tag-file", 1, [&](const char *s) {
     try {
-      tag_manager = std::make_shared<tag_manager_t>(s);
+      tag_memory = std::make_shared<tag_memory_t>(s);
     } catch(std::runtime_error& err) {
       std::cerr << err.what() << std::endl;
     }
@@ -502,7 +502,7 @@ int main(int argc, char** argv)
 #ifdef HAVE_BOOST_ASIO
       io_service_ptr, acceptor_ptr,
 #endif
-      tag_manager,
+      tag_memory,
       cmd_file);
   std::unique_ptr<remote_bitbang_t> remote_bitbang((remote_bitbang_t *) NULL);
   std::unique_ptr<jtag_dtm_t> jtag_dtm(

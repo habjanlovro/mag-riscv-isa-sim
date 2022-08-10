@@ -25,11 +25,13 @@
 
 processor_t::processor_t(const isa_parser_t *isa, const char* varch,
                          simif_t* sim, uint32_t id, bool halt_on_reset,
-                         FILE* log_file, std::ostream& sout_)
+                         FILE* log_file, std::ostream& sout_,
+                         const std::shared_ptr<tag_memory_t>& tag_memory)
   : debug(false), halt_request(HR_NONE), isa(isa), sim(sim), id(id), xlen(0),
   histogram_enabled(false), log_commits_enabled(false),
   log_file(log_file), sout_(sout_.rdbuf()), halt_on_reset(halt_on_reset),
-  impl_table(256, false), last_pc(1), executions(1), TM(4)
+  impl_table(256, false), last_pc(1), executions(1), tag_manager(tag_memory),
+  TM(4)
 {
   VU.p = this;
   TM.proc = this;

@@ -1,9 +1,0 @@
-tags_subproject_deps = \
-	fesvr \
-	riscv \
-
-tags_srcs = \
-	manager.cc
-
-tags_hdrs = \
-	manager.h

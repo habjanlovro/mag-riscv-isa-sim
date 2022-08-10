@@ -3,9 +3,6 @@
 /* Define if building universal (internal helper macro) */
 #undef AC_APPLE_UNIVERSAL_BUILD
 
-/* Define if subproject MCPPBS_SPROJ_NORM is enabled */
-#undef CUSTOMEXT_ENABLED
-
 /* Default value for --isa switch */
 #undef DEFAULT_ISA
 
@@ -128,9 +125,6 @@
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
-
-/* Define if subproject MCPPBS_SPROJ_NORM is enabled */
-#undef TAGS_ENABLED
 
 /* Default value for --target switch */
 #undef TARGET_ARCH

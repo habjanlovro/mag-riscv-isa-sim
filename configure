@@ -6191,51 +6191,6 @@ $as_echo "#define DISASM_ENABLED /**/" >>confdefs.h
 
     # Add subproject to our running list
 
-    subprojects="$subprojects customext"
-
-    # Process the subproject appropriately. If enabled add it to the
-    # $enabled_subprojects running shell variable, set a
-    # SUBPROJECT_ENABLED C define, and include the appropriate
-    # 'subproject.ac'.
-
-
-      { $as_echo "$as_me:${as_lineno-$LINENO}: configuring default subproject : customext" >&5
-$as_echo "$as_me: configuring default subproject : customext" >&6;}
-      ac_config_files="$ac_config_files customext.mk:customext/customext.mk.in"
-
-      enable_customext_sproj="yes"
-      subprojects_enabled="$subprojects_enabled customext"
-
-$as_echo "#define CUSTOMEXT_ENABLED /**/" >>confdefs.h
-
-
-
-
-
-
-    # Determine if this is a required or an optional subproject
-
-
-
-    # Determine if there is a group with the same name
-
-
-
-    # Create variations of the subproject name suitable for use as a CPP
-    # enabled define, a shell enabled variable, and a shell function
-
-
-
-
-
-
-
-
-
-
-
-    # Add subproject to our running list
-
     subprojects="$subprojects fdt"
 
     # Process the subproject appropriately. If enabled add it to the
@@ -6387,51 +6342,6 @@ $as_echo "$as_me: configuring default subproject : spike_dasm" >&6;}
       subprojects_enabled="$subprojects_enabled spike_dasm"
 
 $as_echo "#define SPIKE_DASM_ENABLED /**/" >>confdefs.h
-
-
-
-
-
-
-    # Determine if this is a required or an optional subproject
-
-
-
-    # Determine if there is a group with the same name
-
-
-
-    # Create variations of the subproject name suitable for use as a CPP
-    # enabled define, a shell enabled variable, and a shell function
-
-
-
-
-
-
-
-
-
-
-
-    # Add subproject to our running list
-
-    subprojects="$subprojects tags"
-
-    # Process the subproject appropriately. If enabled add it to the
-    # $enabled_subprojects running shell variable, set a
-    # SUBPROJECT_ENABLED C define, and include the appropriate
-    # 'subproject.ac'.
-
-
-      { $as_echo "$as_me:${as_lineno-$LINENO}: configuring default subproject : tags" >&5
-$as_echo "$as_me: configuring default subproject : tags" >&6;}
-      ac_config_files="$ac_config_files tags.mk:tags/tags.mk.in"
-
-      enable_tags_sproj="yes"
-      subprojects_enabled="$subprojects_enabled tags"
-
-$as_echo "#define TAGS_ENABLED /**/" >>confdefs.h
 
 
 
@@ -7162,12 +7072,10 @@ do
     "fesvr.mk") CONFIG_FILES="$CONFIG_FILES fesvr.mk:fesvr/fesvr.mk.in" ;;
     "riscv.mk") CONFIG_FILES="$CONFIG_FILES riscv.mk:riscv/riscv.mk.in" ;;
     "disasm.mk") CONFIG_FILES="$CONFIG_FILES disasm.mk:disasm/disasm.mk.in" ;;
-    "customext.mk") CONFIG_FILES="$CONFIG_FILES customext.mk:customext/customext.mk.in" ;;
     "fdt.mk") CONFIG_FILES="$CONFIG_FILES fdt.mk:fdt/fdt.mk.in" ;;
     "softfloat.mk") CONFIG_FILES="$CONFIG_FILES softfloat.mk:softfloat/softfloat.mk.in" ;;
     "spike_main.mk") CONFIG_FILES="$CONFIG_FILES spike_main.mk:spike_main/spike_main.mk.in" ;;
     "spike_dasm.mk") CONFIG_FILES="$CONFIG_FILES spike_dasm.mk:spike_dasm/spike_dasm.mk.in" ;;
-    "tags.mk") CONFIG_FILES="$CONFIG_FILES tags.mk:tags/tags.mk.in" ;;
     "config.h") CONFIG_HEADERS="$CONFIG_HEADERS config.h" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
     "riscv-fesvr.pc") CONFIG_FILES="$CONFIG_FILES riscv-fesvr.pc" ;;

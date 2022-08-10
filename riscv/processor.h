@@ -17,6 +17,8 @@
 #include "isa_parser.h"
 #include "triggers.h"
 
+#include "tag_manager.h"
+
 class processor_t;
 class mmu_t;
 typedef reg_t (*insn_func_t)(processor_t*, insn_t, reg_t);
@@ -228,7 +230,8 @@ class processor_t : public abstract_device_t
 public:
   processor_t(const isa_parser_t *isa, const char* varch,
               simif_t* sim, uint32_t id, bool halt_on_reset,
-              FILE *log_file, std::ostream& sout_); // because of command line option --log and -s we need both
+              FILE *log_file, std::ostream& sout_, // because of command line option --log and -s we need both
+              const std::shared_ptr<tag_memory_t>& tag_memory);
   ~processor_t();
 
   const isa_parser_t &get_isa() { return *isa; }
@@ -324,6 +327,8 @@ public:
 
   const char* get_symbol(uint64_t addr);
 
+  const tag_manager_t& get_tag_manager() { return tag_manager; }
+
 private:
   const isa_parser_t * const isa;
 
@@ -369,6 +374,8 @@ private:
 
   // Track repeated executions for processor_t::disasm()
   uint64_t last_pc, last_bits, executions;
+
+  tag_manager_t tag_manager;
 public:
   entropy_source es; // Crypto ISE Entropy source.
 

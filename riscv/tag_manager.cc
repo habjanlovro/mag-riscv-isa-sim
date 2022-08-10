@@ -1,18 +1,18 @@
-#include "manager.h"
+#include "tag_manager.h"
 
 #include <iostream>
+#include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 
 #include "mmu.h"
 
-
-tag_manager_t::tag_manager_t(const char *tag_file_path) {
-	std::ifstream tag_file(tag_file_path);
+tag_memory_t::tag_memory_t(const char *file_path) {
+	std::ifstream tag_file(file_path);
 	if (!tag_file.is_open()) {
 		std::ostringstream oss;
-		oss << "Failed to open tag file '" << tag_file_path << ": " << strerror(errno);
+		oss << "Failed to open tag file '" << file_path << ": " << strerror(errno);
 		throw std::runtime_error(oss.str());
 	}
 
@@ -24,20 +24,20 @@ tag_manager_t::tag_manager_t(const char *tag_file_path) {
 	if (n <= 0) {
 		throw std::runtime_error("Wrong fromat of the D2CC policy!");
 	}
-	policy_matrix = std::vector<std::vector<uint8_t>>(n);
-	tag_mem = new mem_t(PGSIZE);
-	tag_names = std::map<int, std::string>();
+	policy = std::vector<std::vector<uint8_t>>(n);
+	tag_mem = std::make_shared<mem_t>(PGSIZE);
+	names = std::map<int, std::string>();
 
 	for (int i = 0; i < n; i++) {
 		line_num++;
-		policy_matrix[i] = std::vector<uint8_t>(n);
+		policy[i] = std::vector<uint8_t>(n);
 		std::getline(tag_file, line);
 		std::stringstream line_stream(line);
-		line_stream >> tag_names[i];
+		line_stream >> names[i];
 		for (int j = 0; j < n; j++) {
 			std::string item;
 			line_stream >> item;
-			policy_matrix[i][j] = std::stoul(item);
+			policy[i][j] = std::stoul(item);
 		}
 	}
 
@@ -68,6 +68,9 @@ tag_manager_t::tag_manager_t(const char *tag_file_path) {
 	}
 }
 
-tag_manager_t::~tag_manager_t() {
-	delete tag_mem;
+tag_manager_t::tag_manager_t() : enabled(false) {}
+
+tag_manager_t::tag_manager_t(const std::shared_ptr<tag_memory_t>& m)
+		: memory(m) {
+	enabled = memory.get() != 0;
 }
