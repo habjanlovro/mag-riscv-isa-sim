@@ -52,13 +52,13 @@ public:
 #define RISCV_XLATE_VIRT (1U << 0)
 #define RISCV_XLATE_VIRT_HLVX (1U << 1)
 
-  inline reg_t misaligned_load(reg_t addr, size_t size, uint32_t xlate_flags)
+  inline std::pair<reg_t, reg_t> misaligned_load(reg_t addr, size_t size, uint32_t xlate_flags)
   {
 #ifdef RISCV_ENABLE_MISALIGNED
     reg_t res = 0;
     for (size_t i = 0; i < size; i++)
       res += (reg_t)load_uint8(addr + (target_big_endian? size-1-i : i)) << (i * 8);
-    return res;
+    return std::make_pair(res, res);
 #else
     bool gva = ((proc) ? proc->state.v : false) || (RISCV_XLATE_VIRT & xlate_flags);
     throw trap_load_address_misaligned(gva, addr, 0, 0);
@@ -85,7 +85,7 @@ public:
 
   // template for functions that load an aligned value from memory
   #define load_func(type, prefix, xlate_flags) \
-    inline type##_t prefix##_##type(reg_t addr, bool require_alignment = false) { \
+    inline std::pair<type##_t, type##_t> prefix##_##type(reg_t addr, bool require_alignment = false) { \
       if (unlikely(addr & (sizeof(type##_t)-1))) { \
         if (require_alignment) load_reserved_address_misaligned(addr); \
         else return misaligned_load(addr, sizeof(type##_t), xlate_flags); \
@@ -94,7 +94,9 @@ public:
       size_t size = sizeof(type##_t); \
       if ((xlate_flags) == 0 && likely(tlb_load_tag[vpn % TLB_ENTRIES] == vpn)) { \
         if (proc) READ_MEM(addr, size); \
-        return from_target(*(target_endian<type##_t>*)(tlb_data[vpn % TLB_ENTRIES].host_offset + addr)); \
+        return std::make_pair( \
+          from_target(*(target_endian<type##_t>*)(tlb_data[vpn % TLB_ENTRIES].host_offset + addr)), \
+          from_target(*(target_endian<type##_t>*)(tlb_data[vpn % TLB_ENTRIES].host_offset + addr))); \
       } \
       if ((xlate_flags) == 0 && unlikely(tlb_load_tag[vpn % TLB_ENTRIES] == (vpn | TLB_CHECK_TRIGGERS))) { \
         type##_t data = from_target(*(target_endian<type##_t>*)(tlb_data[vpn % TLB_ENTRIES].host_offset + addr)); \
@@ -104,12 +106,12 @@ public:
             throw *matched_trigger; \
         } \
         if (proc) READ_MEM(addr, size); \
-        return data; \
+        return std::make_pair(data, data); \
       } \
       target_endian<type##_t> res; \
       load_slow_path(addr, sizeof(type##_t), (uint8_t*)&res, (xlate_flags)); \
       if (proc) READ_MEM(addr, size); \
-      return from_target(res); \
+      return std::make_pair(from_target(res), from_target(res)); \
     }
 
   // load value from memory at aligned address; zero extend to register width
@@ -147,34 +149,34 @@ public:
 
   // template for functions that store an aligned value to memory
   #define store_func(type, prefix, xlate_flags) \
-    void prefix##_##type(reg_t addr, type##_t val, bool actually_store=true, bool require_alignment=false) { \
+    void prefix##_##type(reg_t addr, std::pair<type##_t, type##_t> val, bool actually_store=true, bool require_alignment=false) { \
       if (unlikely(addr & (sizeof(type##_t)-1))) { \
         if (require_alignment) store_conditional_address_misaligned(addr); \
-        else return misaligned_store(addr, val, sizeof(type##_t), xlate_flags, actually_store); \
+        else return misaligned_store(addr, val.first, sizeof(type##_t), xlate_flags, actually_store); \
       } \
       reg_t vpn = addr >> PGSHIFT; \
       size_t size = sizeof(type##_t); \
       if ((xlate_flags) == 0 && likely(tlb_store_tag[vpn % TLB_ENTRIES] == vpn)) { \
         if (actually_store) { \
-          if (proc) WRITE_MEM(addr, val, size); \
-          *(target_endian<type##_t>*)(tlb_data[vpn % TLB_ENTRIES].host_offset + addr) = to_target(val); \
+          if (proc) WRITE_MEM(addr, val.first, size); \
+          *(target_endian<type##_t>*)(tlb_data[vpn % TLB_ENTRIES].host_offset + addr) = to_target(val.first); \
         } \
       } \
       else if ((xlate_flags) == 0 && unlikely(tlb_store_tag[vpn % TLB_ENTRIES] == (vpn | TLB_CHECK_TRIGGERS))) { \
         if (actually_store) { \
           if (!matched_trigger) { \
-            matched_trigger = trigger_exception(triggers::OPERATION_STORE, addr, val); \
+            matched_trigger = trigger_exception(triggers::OPERATION_STORE, addr, val.first); \
             if (matched_trigger) \
               throw *matched_trigger; \
           } \
-          if (proc) WRITE_MEM(addr, val, size); \
-          *(target_endian<type##_t>*)(tlb_data[vpn % TLB_ENTRIES].host_offset + addr) = to_target(val); \
+          if (proc) WRITE_MEM(addr, val.first, size); \
+          *(target_endian<type##_t>*)(tlb_data[vpn % TLB_ENTRIES].host_offset + addr) = to_target(val.first); \
         } \
       } \
       else { \
-        target_endian<type##_t> target_val = to_target(val); \
+        target_endian<type##_t> target_val = to_target(val.first); \
         store_slow_path(addr, sizeof(type##_t), (const uint8_t*)&target_val, (xlate_flags), actually_store); \
-        if (actually_store && proc) WRITE_MEM(addr, val, size); \
+        if (actually_store && proc) WRITE_MEM(addr, val.first, size); \
       } \
   }
 
@@ -198,10 +200,10 @@ public:
     template<typename op> \
     type##_t amo_##type(reg_t addr, op f) { \
       convert_load_traps_to_store_traps({ \
-        store_##type(addr, 0, false, true); \
+        store_##type(addr, std::make_pair(0, 0), false, true); \
         auto lhs = load_##type(addr, true); \
-        store_##type(addr, f(lhs)); \
-        return lhs; \
+        store_##type(addr, std::make_pair(f(lhs.first), 0)); \
+        return lhs.first; \
       }) \
     }
 
@@ -211,8 +213,8 @@ public:
     if (unlikely(addr & (sizeof(float128_t)-1)))
       throw trap_store_address_misaligned((proc) ? proc->state.v : false, addr, 0, 0);
 #endif
-    store_uint64(addr, val.v[0]);
-    store_uint64(addr + 8, val.v[1]);
+    store_uint64(addr, std::make_pair(val.v[0], val.v[0]));
+    store_uint64(addr + 8, std::make_pair(val.v[1], val.v[1]));
   }
 
   float128_t load_float128(reg_t addr)
@@ -221,7 +223,7 @@ public:
     if (unlikely(addr & (sizeof(float128_t)-1)))
       throw trap_load_address_misaligned((proc) ? proc->state.v : false, addr, 0, 0);
 #endif
-    return (float128_t){load_uint64(addr), load_uint64(addr + 8)};
+    return (float128_t){load_uint64(addr).first, load_uint64(addr + 8).first};
   }
 
   // store value to memory at aligned address
@@ -243,7 +245,7 @@ public:
   void cbo_zero(reg_t addr) {
     auto base = addr & ~(blocksz - 1);
     for (size_t offset = 0; offset < blocksz; offset += 1)
-      store_uint8(base + offset, 0);
+      store_uint8(base + offset, std::make_pair(0, 0));
   }
 
   void clean_inval(reg_t addr, bool clean, bool inval) {

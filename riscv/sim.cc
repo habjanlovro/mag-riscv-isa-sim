@@ -410,7 +410,7 @@ void sim_t::idle()
 void sim_t::read_chunk(addr_t taddr, size_t len, void* dst)
 {
   assert(len == 8);
-  auto data = debug_mmu->to_target(debug_mmu->load_uint64(taddr));
+  auto data = debug_mmu->to_target(debug_mmu->load_uint64(taddr).first);
   memcpy(dst, &data, sizeof data);
 }
 
@@ -419,7 +419,7 @@ void sim_t::write_chunk(addr_t taddr, size_t len, const void* src)
   assert(len == 8);
   target_endian<uint64_t> data;
   memcpy(&data, src, sizeof data);
-  debug_mmu->store_uint64(taddr, debug_mmu->from_target(data));
+  debug_mmu->store_uint64(taddr, std::make_pair(debug_mmu->from_target(data), 0));
 }
 
 void sim_t::set_target_endianness(memif_endianness_t endianness)

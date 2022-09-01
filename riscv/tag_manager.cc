@@ -197,31 +197,6 @@ tag_manager_t::~tag_manager_t() {
 }
 
 static uint8_t load_tag(mmu_t *mmu, reg_t addr) {
-	try {
-		// if (addr > 0xffffffff) {
-		// 	// std::cerr << "addr > 32 bit" <<std::endl;
-		// 	return 0;
-		// }
-		// if (addr < 0x1000) {
-		// 	// std::cerr << "addr < 0x1000" << std::endl;
-		// 	return 0;
-		// }
-		return mmu->load_uint8(addr);
-	} catch (trap_load_access_fault& e) {
-		std::cerr << "load_access_fault" << std::endl;
-		return 0;
-	} catch(trap_load_address_misaligned& e) {
-		std::cerr << "trap_load_address_misaligned" << std::endl;
-	} catch (trap_load_page_fault& e) {
-		std::cerr << "trap_load_page_fault\t";
-		std::cerr << "cause: " << e.cause()
-			<< " " << e.has_gva()
-			<< " " << e.get_tval()
-			<< " " << e.get_tval2()
-			<< " " << e.get_tinst() << std::endl;
-	} catch (...) {
-		std::cerr << std::endl << "Failed to read address: " << addr << std::endl;
-	}
 	return 0;
 }
 
@@ -307,17 +282,6 @@ void tag_manager_t::store(const reg_t pc, const uint8_t rs1, const uint8_t rs2,
 			throw std::runtime_error("Error store()! lca(PC, RS1, RS2) invalid tag!");
 		}
 		for (size_t offset = 0; offset < num_bytes; offset++) {
-			try {
-				mmu->store_uint8(addr + offset, new_tag);
-			} catch (trap_store_page_fault& e) {
-				std::cerr << "trap_store_page_fault\t"
-					<< e.cause() << " "
-					<< e.get_tval() << " "
-					<< e.get_tval2() << " "
-					<< e.get_tinst() << std::endl;
-			} catch (...) {
-				std::cerr << "Store failed " << addr + offset << std::endl;
-			}
 		}
 	}
 }
