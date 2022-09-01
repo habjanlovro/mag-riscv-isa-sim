@@ -13,6 +13,13 @@ clint_t::clint_t(std::vector<processor_t*>& procs, uint64_t freq_hz, bool real_t
   real_time_ref_usecs = base.tv_usec;
 }
 
+clint_t::clint_t(const clint_t& that) :
+    freq_hz(that.freq_hz), real_time(that.real_time),
+    real_time_ref_secs(that.real_time_ref_secs),
+    real_time_ref_usecs(that.real_time_ref_usecs),
+    mtime(that.mtime), procs(that.procs), mtimecmp(that.mtimecmp) {
+}
+
 /* 0000 msip hart 0
  * 0004 msip hart 1
  * 4000 mtimecmp hart 0 lo

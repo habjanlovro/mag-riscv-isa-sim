@@ -409,10 +409,19 @@ int main(int argc, char** argv)
   });
 
   FILE *tag_file = NULL;
-  std::shared_ptr<tag_memory_t> tag_memory;
-  parser.option(0, "tag-file", 1, [&](const char *s) {
+  tag_memory_t *tag_memory = nullptr;
+  parser.option(0, "tag-files", 1, [&](const char *s) {
+    std::string policy, tag;
+    std::stringstream stream(s);
+    std::getline(stream, policy, ',');
+    std::getline(stream, tag, ',');
+    if (policy.empty() || tag.empty()) {
+      std::cerr << "Failed to read tag files! "
+        << "Tag files must be in the form of <policy-file>,<tag-file>!" << std::endl;
+      std::abort();
+    }
     try {
-      tag_memory = std::make_shared<tag_memory_t>(s);
+      tag_memory = new tag_memory_t(policy, tag);
     } catch(std::runtime_error& err) {
       std::cerr << err.what() << std::endl;
     }
@@ -425,6 +434,7 @@ int main(int argc, char** argv)
     help();
 
   std::vector<std::pair<reg_t, mem_t*>> mems = make_mems(cfg.mem_layout());
+  auto tag_mems = make_mems(cfg.mem_layout());
 
   if (kernel && check_file_exists(kernel)) {
     const char *isa = cfg.isa();
@@ -535,12 +545,21 @@ int main(int argc, char** argv)
   s.set_histogram(histogram);
 
   auto return_code = s.run();
+  s.get_core(0)->get_tag_manager()->print();
 
   for (auto& mem : mems)
     delete mem.second;
 
   for (auto& plugin_device : plugin_devices)
     delete plugin_device.second;
+
+  for (auto& mem : tag_mems) {
+    delete mem.second;
+  }
+
+  if (tag_memory) {
+    delete tag_memory;
+  }
 
   return return_code;
 }

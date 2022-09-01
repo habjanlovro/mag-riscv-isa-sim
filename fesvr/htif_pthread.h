@@ -10,7 +10,7 @@
 class htif_pthread_t : public htif_t
 {
  public:
-  htif_pthread_t(int argc, char** argv);
+  htif_pthread_t(tag_memory_t *tag_memory, int argc, char** argv);
   virtual ~htif_pthread_t();
 
   // target inteface

@@ -98,6 +98,17 @@ mem_t::mem_t(reg_t size)
     throw std::runtime_error("memory size must be a positive multiple of 4 KiB");
 }
 
+mem_t::mem_t(const mem_t& that) {
+  for (auto& t : that.sparse_memory_map) {
+    auto res = (char *) calloc(PGSIZE, 1);
+    if (res == nullptr) {
+      throw std::bad_alloc();
+    }
+    sparse_memory_map[t.first] = res;
+  }
+  sz = that.sz;
+}
+
 mem_t::~mem_t()
 {
   for (auto& entry : sparse_memory_map)

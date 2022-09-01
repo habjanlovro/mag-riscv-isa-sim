@@ -30,7 +30,7 @@ int main(int argc, char** argv)
   parser.parse(argv);
 
   isa_parser_t isa(isa_string, DEFAULT_PRIV);
-  auto tag_memory = std::make_shared<tag_memory_t>();
+  auto *tag_memory = new tag_memory_t();
   processor_t p(&isa, DEFAULT_VARCH, 0, 0, false, nullptr, cerr, tag_memory);
   if (extension) {
     p.register_extension(extension());

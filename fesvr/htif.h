@@ -12,12 +12,14 @@
 #include <vector>
 #include <assert.h>
 
+#include "tag_manager.h"
+
 class htif_t : public chunked_memif_t
 {
  public:
-  htif_t();
-  htif_t(int argc, char** argv);
-  htif_t(const std::vector<std::string>& args);
+  htif_t(tag_memory_t *tag_memory);
+  htif_t(tag_memory_t *tag_memory, int argc, char** argv);
+  htif_t(tag_memory_t *tag_memory, const std::vector<std::string>& args);
   virtual ~htif_t();
 
   virtual void start();
@@ -28,6 +30,10 @@ class htif_t : public chunked_memif_t
   int exit_code();
 
   virtual memif_t& memif() { return mem; }
+
+  tag_memory_t *get_tag_memory() {
+    return tag_memory;
+  }
 
   template<typename T> inline T from_target(target_endian<T> n) const
   {
@@ -77,6 +83,8 @@ class htif_t : public chunked_memif_t
 
   // Given an address, return symbol from addr2symbol map
   const char* get_symbol(uint64_t addr);
+
+  tag_memory_t *tag_memory;
 
  private:
   void parse_arguments(int argc, char ** argv);

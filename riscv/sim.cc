@@ -38,9 +38,9 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
 #ifdef HAVE_BOOST_ASIO
              boost::asio::io_service *io_service_ptr, boost::asio::ip::tcp::acceptor *acceptor_ptr, // option -s
 #endif
-             const std::shared_ptr<tag_memory_t> tm,
+             tag_memory_t *tm,
              FILE *cmd_file) // needed for command line option --cmd
-  : htif_t(args),
+  : htif_t(tm, args),
     isa(cfg->isa(), cfg->priv()),
     cfg(cfg),
     mems(mems),
@@ -61,18 +61,25 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
     histogram_enabled(false),
     log(false),
     remote_bitbang(NULL),
-    tag_memory(tm),
     debug_module(this, dm_config)
 {
   signal(SIGINT, &handle_signal);
 
   sout_.rdbuf(std::cerr.rdbuf()); // debug output goes to stderr by default
 
-  for (auto& x : mems)
+  for (auto& x : mems) {
     bus.add_device(x.first, x.second);
+    if (tag_memory) {
+      tag_memory->add_mem(x.first, x.second);
+    }
+  }
 
-  for (auto& x : plugin_devices)
+  for (auto& x : plugin_devices) {
     bus.add_device(x.first, x.second);
+    if (tag_memory) {
+      tag_memory->add_mem(x.first, x.second);
+    }
+  }
 
   debug_module.add_device(&bus);
 
@@ -98,6 +105,9 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
   if (fdt_parse_clint(fdt, &clint_base, "riscv,clint0") == 0) {
     clint.reset(new clint_t(procs, CPU_HZ / INSNS_PER_RTC_TICK, cfg->real_time_clint()));
     bus.add_device(clint_base, clint.get());
+    if (tag_memory) {
+      tag_memory->add_mem(clint_base, clint.get());
+    }
   }
 
   //per core attribute
@@ -364,6 +374,9 @@ void sim_t::set_rom()
 
   boot_rom.reset(new rom_device_t(rom));
   bus.add_device(DEFAULT_RSTVEC, boot_rom.get());
+  if (tag_memory) {
+    tag_memory->add_mem(DEFAULT_RSTVEC, boot_rom.get());
+  }
 }
 
 char* sim_t::addr_to_mem(reg_t addr) {

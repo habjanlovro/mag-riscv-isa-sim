@@ -18,7 +18,7 @@
 class tsi_t : public htif_t
 {
  public:
-  tsi_t(int argc, char** argv);
+  tsi_t(tag_memory_t *tag_memory, int argc, char** argv);
   virtual ~tsi_t();
 
   bool data_available();

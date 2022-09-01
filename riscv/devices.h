@@ -26,6 +26,7 @@ class bus_t : public abstract_device_t {
 class rom_device_t : public abstract_device_t {
  public:
   rom_device_t(std::vector<char> data);
+  rom_device_t(const rom_device_t& that);
   bool load(reg_t addr, size_t len, uint8_t* bytes);
   bool store(reg_t addr, size_t len, const uint8_t* bytes);
   const std::vector<char>& contents() { return data; }
@@ -36,7 +37,7 @@ class rom_device_t : public abstract_device_t {
 class mem_t : public abstract_device_t {
  public:
   mem_t(reg_t size);
-  mem_t(const mem_t& that) = delete;
+  mem_t(const mem_t& that);
   ~mem_t();
 
   bool load(reg_t addr, size_t len, uint8_t* bytes) { return load_store(addr, len, bytes, false); }
@@ -54,6 +55,7 @@ class mem_t : public abstract_device_t {
 class clint_t : public abstract_device_t {
  public:
   clint_t(std::vector<processor_t*>&, uint64_t freq_hz, bool real_time);
+  clint_t(const clint_t& that);
   bool load(reg_t addr, size_t len, uint8_t* bytes);
   bool store(reg_t addr, size_t len, const uint8_t* bytes);
   size_t size() { return CLINT_SIZE; }

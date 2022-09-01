@@ -42,8 +42,8 @@ static void handle_signal(int sig)
   signal(sig, &handle_signal);
 }
 
-htif_t::htif_t()
-  : mem(this), entry(DRAM_BASE), sig_addr(0), sig_len(0),
+htif_t::htif_t(tag_memory_t *tag_memory)
+  : tag_memory(tag_memory), mem(this), entry(DRAM_BASE), sig_addr(0), sig_len(0),
     tohost_addr(0), fromhost_addr(0), exitcode(0), stopped(false),
     syscall_proxy(this)
 {
@@ -52,7 +52,8 @@ htif_t::htif_t()
   signal(SIGABRT, &handle_signal); // we still want to call static destructors
 }
 
-htif_t::htif_t(int argc, char** argv) : htif_t()
+htif_t::htif_t(tag_memory_t *tag_memory, int argc, char** argv)
+  : htif_t(tag_memory)
 {
   //Set line size as 16 by default.
   line_size = 16;
@@ -60,7 +61,8 @@ htif_t::htif_t(int argc, char** argv) : htif_t()
   register_devices();
 }
 
-htif_t::htif_t(const std::vector<std::string>& args) : htif_t()
+htif_t::htif_t(tag_memory_t *tag_memory, const std::vector<std::string>& args)
+  : htif_t(tag_memory)
 {
   int argc = args.size() + 1;
   char * argv[argc];

@@ -13,7 +13,8 @@ void tsi_t::host_thread(void *arg)
     tsi->target->switch_to();
 }
 
-tsi_t::tsi_t(int argc, char** argv) : htif_t(argc, argv)
+tsi_t::tsi_t(tag_memory_t *tag_memory, int argc, char** argv)
+  : htif_t(tag_memory, argc, argv)
 {
   target = context_t::current();
   host.init(host_thread, this);

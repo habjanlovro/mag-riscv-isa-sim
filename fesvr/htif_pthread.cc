@@ -12,8 +12,8 @@ void htif_pthread_t::thread_main(void* arg)
     htif->target->switch_to();
 }
 
-htif_pthread_t::htif_pthread_t(int argc, char** argv)
-    : htif_t(argc, argv)
+htif_pthread_t::htif_pthread_t(tag_memory_t *tag_memory, int argc, char** argv)
+    : htif_t(tag_memory, argc, argv)
 {
   target = context_t::current();
   host.init(thread_main, this);

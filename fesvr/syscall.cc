@@ -229,6 +229,9 @@ reg_t syscall_t::sys_read(reg_t fd, reg_t pbuf, reg_t len, reg_t a3, reg_t a4, r
 
 reg_t syscall_t::sys_pread(reg_t fd, reg_t pbuf, reg_t len, reg_t off, reg_t a4, reg_t a5, reg_t a6)
 {
+  if (htif->get_tag_memory()) {
+    htif->get_tag_memory()->copy_tag_mem(pbuf, len, off);
+  }
   std::vector<char> buf(len);
   ssize_t ret = pread(fds.lookup(fd), buf.data(), len, off);
   reg_t ret_errno = sysret_errno(ret);

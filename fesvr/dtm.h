@@ -10,11 +10,13 @@
 #include <string>
 #include <stdlib.h>
 
+#include <tag_manager.h>
+
 // abstract debug transport module
 class dtm_t : public htif_t
 {
  public:
-  dtm_t(int argc, char**argv);
+  dtm_t(tag_memory_t *tag_memory, int argc, char**argv);
   ~dtm_t();
 
   struct req {

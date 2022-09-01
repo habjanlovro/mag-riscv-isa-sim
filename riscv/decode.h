@@ -185,6 +185,13 @@ private:
 #define RS3 READ_REG(insn.rs3())
 #define WRITE_RD(value) WRITE_REG(insn.rd(), value)
 
+#define TAG (*p->get_tag_manager())
+#define READ_TAG(reg) TAG.XPR_tags[reg]
+#define TAG_RS1 READ_TAG(insn.rs1())
+#define TAG_RS2 READ_TAG(insn.rs2())
+#define TAG_RS3 READ_TAG(insn.rs3())
+#define TAG_DEST (insn.rd())
+
 #ifndef RISCV_ENABLE_COMMITLOG
 # define WRITE_REG(reg, value) ({ CHECK_REG(reg); STATE.XPR.write(reg, value); })
 # define WRITE_FREG(reg, value) DO_WRITE_FREG(reg, freg(value))

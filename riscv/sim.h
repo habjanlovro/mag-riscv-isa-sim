@@ -25,7 +25,6 @@
 #include <memory>
 #include <sys/types.h>
 
-#include "tag_manager.h"
 
 class mmu_t;
 class remote_bitbang_t;
@@ -43,7 +42,7 @@ public:
 #ifdef HAVE_BOOST_ASIO
         boost::asio::io_service *io_service_ptr_ctor, boost::asio::ip::tcp::acceptor *acceptor_ptr_ctor,  // option -s
 #endif
-        const std::shared_ptr<tag_memory_t> tm,
+        tag_memory_t *tm,
         FILE *cmd_file); // needed for command line option --cmd
   ~sim_t();
 
@@ -165,8 +164,6 @@ private:
   size_t chunk_max_size() { return 8; }
   void set_target_endianness(memif_endianness_t endianness);
   memif_endianness_t get_target_endianness() const;
-
-  std::shared_ptr<tag_memory_t> tag_memory;
 
 public:
   // Initialize this after procs, because in debug_module_t::reset() we

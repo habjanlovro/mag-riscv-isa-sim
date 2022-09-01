@@ -5,6 +5,10 @@ rom_device_t::rom_device_t(std::vector<char> data)
 {
 }
 
+rom_device_t::rom_device_t(const rom_device_t& that) {
+  data.resize(that.data.size(), 0);
+}
+
 bool rom_device_t::load(reg_t addr, size_t len, uint8_t* bytes)
 {
   if (addr + len > data.size())
