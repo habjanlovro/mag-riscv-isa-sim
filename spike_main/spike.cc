@@ -409,7 +409,7 @@ int main(int argc, char** argv)
   });
 
   FILE *tag_file = NULL;
-  tag_memory_t *tag_memory = nullptr;
+  tag_memory_t *tag_memory = new tag_memory_t;
   parser.option(0, "tag-files", 1, [&](const char *s) {
     std::string policy, tag;
     std::stringstream stream(s);
@@ -421,6 +421,9 @@ int main(int argc, char** argv)
       std::abort();
     }
     try {
+      if (tag_memory) {
+        delete tag_memory;
+      }
       tag_memory = new tag_memory_t(policy, tag);
     } catch(std::runtime_error& err) {
       std::cerr << err.what() << std::endl;

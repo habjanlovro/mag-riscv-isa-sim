@@ -13,9 +13,14 @@
 #include "mmu.h"
 #include "processor.h"
 
+
+tag_memory_t::tag_memory_t() : tag_fd(-1), enabled(false) {
+	bus = new bus_t;
+}
+
 tag_memory_t::tag_memory_t(
 		const std::string& policy_file,
-		const std::string& tag_file) : tag_fd(-1) {
+		const std::string& tag_file) : tag_fd(-1), enabled(true) {
 	std::ifstream policy_file_stream(policy_file);
 	if (!policy_file_stream.is_open()) {
 		std::ostringstream oss;
@@ -100,12 +105,10 @@ tag_memory_t::tag_memory_t(
 		throw std::runtime_error("Failed to open the tag file!");
 	}
 	bus = new bus_t();
-	mem_t *m = new mem_t(PGSIZE);
-	bus->add_device(0, m);
 }
 
 tag_memory_t::~tag_memory_t() {
-	if (tag_fd < 0) {
+	if (tag_fd > 0) {
 		if (close(tag_fd) < 0) {
 			std::cerr << "Failed to close file descriptor! Error: " << strerror(errno) << std::endl;
 		}
@@ -164,6 +167,9 @@ const char* tag_memory_t::get_symbol(uint64_t addr) {
 }
 
 void tag_memory_t::copy_tag_mem(reg_t pbuf, reg_t len, reg_t off) {
+	if (!enabled) {
+		return;
+	}
 	std::vector<uint8_t> buf(len);
 	ssize_t ret = pread(tag_fd, buf.data(), len, off);
 	for (auto& c : buf) {
@@ -284,7 +290,7 @@ T tag_manager_t::store(const uint8_t pc_addr_tag, const uint8_t rs1,
 		if (new_tag == TAG_INVALID) {
 			throw std::runtime_error("Error store()! lca(PC, RS1, RS2) invalid tag!");
 		}
-		T result;
+		T result = 0;
 		for (size_t i = 0; i < sizeof result; i++) {
 			result |= new_tag << (8 * i);
 		}

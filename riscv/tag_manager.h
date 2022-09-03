@@ -36,12 +36,12 @@ struct tag_pg_t {
 
 class tag_memory_t : public simif_t {
 	public:
-		tag_memory_t() : tag_fd(-1) {}
+		tag_memory_t();
 		tag_memory_t(const std::string& policy_file, const std::string& tag_file);
 		virtual ~tag_memory_t();
 
 		inline uint8_t lca(const uint8_t x, const uint8_t y) const {
-			return policy[x][y];
+			return enabled ?  policy[x][y] : 0;
 		}
 
 		void add_mem(const reg_t addr, abstract_device_t *device);
@@ -73,6 +73,7 @@ class tag_memory_t : public simif_t {
 		std::map<size_t, tag_pg_t> perimiter_guards;
 		bus_t *bus;
 		int tag_fd;
+		bool enabled;
 };
 
 
