@@ -25,6 +25,7 @@ struct insn_fetch_t
 {
   insn_func_t func;
   insn_t insn;
+  uint8_t tag;
 };
 
 struct icache_entry_t {
@@ -35,6 +36,7 @@ struct icache_entry_t {
 
 struct tlb_entry_t {
   char* host_offset;
+  char* host_tag_offset;
   reg_t target_offset;
 };
 
@@ -46,7 +48,7 @@ private:
   std::map<reg_t, reg_t> alloc_cache;
   std::vector<std::pair<reg_t, reg_t >> addr_tbl;
 public:
-  mmu_t(simif_t* sim, processor_t* proc);
+  mmu_t(simif_t* sim, processor_t* proc, tag_memory_t *tag_memory);
   ~mmu_t();
 
 #define RISCV_XLATE_VIRT (1U << 0)
@@ -96,22 +98,24 @@ public:
         if (proc) READ_MEM(addr, size); \
         return std::make_pair( \
           from_target(*(target_endian<type##_t>*)(tlb_data[vpn % TLB_ENTRIES].host_offset + addr)), \
-          from_target(*(target_endian<type##_t>*)(tlb_data[vpn % TLB_ENTRIES].host_offset + addr))); \
+          from_target(*(target_endian<type##_t>*)(tlb_data[vpn % TLB_ENTRIES].host_tag_offset + addr))); \
       } \
       if ((xlate_flags) == 0 && unlikely(tlb_load_tag[vpn % TLB_ENTRIES] == (vpn | TLB_CHECK_TRIGGERS))) { \
-        type##_t data = from_target(*(target_endian<type##_t>*)(tlb_data[vpn % TLB_ENTRIES].host_offset + addr)); \
+        auto data = std::make_pair( \
+          from_target(*(target_endian<type##_t>*)(tlb_data[vpn % TLB_ENTRIES].host_offset + addr)), \
+          from_target(*(target_endian<type##_t>*)(tlb_data[vpn % TLB_ENTRIES].host_tag_offset + addr))); \
         if (!matched_trigger) { \
-          matched_trigger = trigger_exception(triggers::OPERATION_LOAD, addr, data); \
+          matched_trigger = trigger_exception(triggers::OPERATION_LOAD, addr, data.first); \
           if (matched_trigger) \
             throw *matched_trigger; \
         } \
         if (proc) READ_MEM(addr, size); \
-        return std::make_pair(data, data); \
+        return data; \
       } \
-      target_endian<type##_t> res; \
-      load_slow_path(addr, sizeof(type##_t), (uint8_t*)&res, (xlate_flags)); \
+      std::pair<target_endian<type##_t>, target_endian<type##_t>> res; \
+      load_slow_path(addr, sizeof(type##_t), (uint8_t*) &(res.first), (uint8_t*) &(res.second), (xlate_flags)); \
       if (proc) READ_MEM(addr, size); \
-      return std::make_pair(from_target(res), from_target(res)); \
+      return std::make_pair(from_target(res.first), from_target(res.second)); \
     }
 
   // load value from memory at aligned address; zero extend to register width
@@ -175,7 +179,8 @@ public:
       } \
       else { \
         target_endian<type##_t> target_val = to_target(val.first); \
-        store_slow_path(addr, sizeof(type##_t), (const uint8_t*)&target_val, (xlate_flags), actually_store); \
+        target_endian<type##_t> target_tag_val = to_target(val.second); \
+        store_slow_path(addr, sizeof(type##_t), (const uint8_t*)&target_val, (const uint8_t*)&target_tag_val, (xlate_flags), actually_store); \
         if (actually_store && proc) WRITE_MEM(addr, val.first, size); \
       } \
   }
@@ -269,8 +274,10 @@ public:
   inline void acquire_load_reservation(reg_t vaddr)
   {
     reg_t paddr = translate(vaddr, 1, LOAD, 0);
-    if (auto host_addr = sim->addr_to_mem(paddr))
-      load_reservation_address = refill_tlb(vaddr, paddr, host_addr, LOAD).target_offset + vaddr;
+    auto host_addr = sim->addr_to_mem(paddr);
+    auto tag_host_addr = tag_mem->addr_to_mem(paddr);
+    if (host_addr && tag_host_addr)
+      load_reservation_address = refill_tlb(vaddr, paddr, host_addr, tag_host_addr, LOAD).target_offset + vaddr;
     else
       throw trap_load_access_fault((proc) ? proc->state.v : false, vaddr, 0, 0); // disallow LR to I/O space
   }
@@ -301,8 +308,10 @@ public:
       store_conditional_address_misaligned(vaddr);
 
     reg_t paddr = translate(vaddr, 1, STORE, 0);
-    if (auto host_addr = sim->addr_to_mem(paddr))
-      return load_reservation_address == refill_tlb(vaddr, paddr, host_addr, STORE).target_offset + vaddr;
+    auto host_addr = sim->addr_to_mem(paddr);
+    auto tag_host_addr = tag_mem->addr_to_mem(paddr);
+    if (host_addr && tag_host_addr)
+      return load_reservation_address == refill_tlb(vaddr, paddr, host_addr, tag_host_addr, STORE).target_offset + vaddr;
     else
       throw trap_store_access_fault((proc) ? proc->state.v : false, vaddr, 0, 0); // disallow SC to I/O space
   }
@@ -314,27 +323,44 @@ public:
     return (addr / PC_ALIGN) % ICACHE_ENTRIES;
   }
 
+  inline uint8_t compute_pc_tag(uint64_t data) {
+    uint8_t r = (uint8_t) data;
+    for (size_t i = 8; i < 64; i += 8) {
+	  r = tag_mem->lca(r, (uint8_t) (data >> i));
+    }
+    return r;
+  }
+
   inline icache_entry_t* refill_icache(reg_t addr, icache_entry_t* entry)
   {
     auto tlb_entry = translate_insn_addr(addr);
     insn_bits_t insn = from_le(*(uint16_t*)(tlb_entry.host_offset + addr));
+    uint64_t tag_data = from_le(*(uint16_t*)(tlb_entry.host_tag_offset + addr));
     int length = insn_length(insn);
 
     if (likely(length == 4)) {
       insn |= (insn_bits_t)from_le(*(const uint16_t*)translate_insn_addr_to_host(addr + 2)) << 16;
+      tag_data |= (uint64_t)from_le(*(const uint16_t*)translate_insn_addr_to_tag(addr + 2)) << 16;
+
     } else if (length == 2) {
       // entire instruction already fetched
     } else if (length == 6) {
       insn |= (insn_bits_t)from_le(*(const uint16_t*)translate_insn_addr_to_host(addr + 4)) << 32;
+      tag_data |= (uint64_t)from_le(*(const uint16_t*)translate_insn_addr_to_tag(addr + 4)) << 32;
       insn |= (insn_bits_t)from_le(*(const uint16_t*)translate_insn_addr_to_host(addr + 2)) << 16;
+      tag_data |= (uint64_t)from_le(*(const uint16_t*)translate_insn_addr_to_tag(addr + 2)) << 16;
     } else {
       static_assert(sizeof(insn_bits_t) == 8, "insn_bits_t must be uint64_t");
       insn |= (insn_bits_t)from_le(*(const uint16_t*)translate_insn_addr_to_host(addr + 6)) << 48;
+      tag_data |= (uint64_t)from_le(*(const uint16_t*)translate_insn_addr_to_tag(addr + 6)) << 48;
       insn |= (insn_bits_t)from_le(*(const uint16_t*)translate_insn_addr_to_host(addr + 4)) << 32;
+      tag_data |= (uint64_t)from_le(*(const uint16_t*)translate_insn_addr_to_tag(addr + 4)) << 32;
       insn |= (insn_bits_t)from_le(*(const uint16_t*)translate_insn_addr_to_host(addr + 2)) << 16;
+      tag_data |= (uint64_t)from_le(*(const uint16_t*)translate_insn_addr_to_tag(addr + 2)) << 16;
     }
 
-    insn_fetch_t fetch = {proc->decode_insn(insn), insn};
+    uint8_t insn_tag = compute_pc_tag(tag_data);
+    insn_fetch_t fetch = {proc->decode_insn(insn), insn, insn_tag};
     entry->tag = addr;
     entry->next = &icache[icache_index(addr + length)];
     entry->data = fetch;
@@ -416,9 +442,11 @@ public:
 private:
   simif_t* sim;
   processor_t* proc;
+  tag_memory_t *tag_mem;
   memtracer_list_t tracer;
   reg_t load_reservation_address;
   uint16_t fetch_temp;
+  uint16_t tag_fetch_temp;
   uint64_t blocksz;
 
   // implement an instruction cache for simulator performance
@@ -435,7 +463,7 @@ private:
   reg_t tlb_store_tag[TLB_ENTRIES];
 
   // finish translation on a TLB miss and update the TLB
-  tlb_entry_t refill_tlb(reg_t vaddr, reg_t paddr, char* host_addr, access_type type);
+  tlb_entry_t refill_tlb(reg_t vaddr, reg_t paddr, char* host_addr, char* tag_host_addr, access_type type);
   const char* fill_from_mmio(reg_t vaddr, reg_t paddr);
 
   // perform a stage2 translation for a given guest address
@@ -446,10 +474,15 @@ private:
 
   // handle uncommon cases: TLB misses, page faults, MMIO
   tlb_entry_t fetch_slow_path(reg_t addr);
-  void load_slow_path(reg_t addr, reg_t len, uint8_t* bytes, uint32_t xlate_flags);
-  void store_slow_path(reg_t addr, reg_t len, const uint8_t* bytes, uint32_t xlate_flags, bool actually_store);
+  void load_slow_path(reg_t addr, reg_t len, uint8_t* bytes, uint8_t* tag_bytes, uint32_t xlate_flags);
+  void store_slow_path(reg_t addr, reg_t len, const uint8_t* bytes, const uint8_t* tag_bytes, uint32_t xlate_flags, bool actually_store);
+
   bool mmio_load(reg_t addr, size_t len, uint8_t* bytes);
+  bool tag_mmio_load(reg_t addr, size_t len, uint8_t* bytes);
+
   bool mmio_store(reg_t addr, size_t len, const uint8_t* bytes);
+  bool tag_mmio_store(reg_t addr, size_t len, const uint8_t* bytes);
+
   bool mmio_ok(reg_t addr, access_type type);
   reg_t translate(reg_t addr, reg_t len, access_type type, uint32_t xlate_flags);
 
@@ -477,6 +510,10 @@ private:
 
   inline const uint16_t* translate_insn_addr_to_host(reg_t addr) {
     return (uint16_t*)(translate_insn_addr(addr).host_offset + addr);
+  }
+
+  inline const uint16_t* translate_insn_addr_to_tag(reg_t addr) {
+    return (uint16_t*)(translate_insn_addr(addr).host_tag_offset + addr);
   }
 
   inline triggers::matched_t *trigger_exception(triggers::operation_t operation,

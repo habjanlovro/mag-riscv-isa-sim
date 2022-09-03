@@ -46,7 +46,7 @@ processor_t::processor_t(const isa_parser_t *isa, const char* varch,
   parse_varch_string(varch);
 
   register_base_instructions();
-  mmu = new mmu_t(sim, this);
+  mmu = new mmu_t(sim, this, tag_memory);
 
   disassembler = new disassembler_t(isa);
   for (auto e : isa->get_extensions())
@@ -869,7 +869,7 @@ reg_t processor_t::get_csr(int which, insn_t insn, bool write, bool peek)
   throw trap_illegal_instruction(insn.bits());
 }
 
-reg_t illegal_instruction(processor_t* p, insn_t insn, reg_t pc)
+reg_t illegal_instruction(processor_t* p, insn_t insn, reg_t pc, uint8_t tag)
 {
   throw trap_illegal_instruction(insn.bits());
 }
@@ -958,10 +958,10 @@ void processor_t::register_base_instructions()
   #undef DECLARE_OVERLAP_INSN
 
   #define DEFINE_INSN(name) \
-    extern reg_t rv32i_##name(processor_t*, insn_t, reg_t); \
-    extern reg_t rv64i_##name(processor_t*, insn_t, reg_t); \
-    extern reg_t rv32e_##name(processor_t*, insn_t, reg_t); \
-    extern reg_t rv64e_##name(processor_t*, insn_t, reg_t); \
+    extern reg_t rv32i_##name(processor_t*, insn_t, reg_t, uint8_t); \
+    extern reg_t rv64i_##name(processor_t*, insn_t, reg_t, uint8_t); \
+    extern reg_t rv32e_##name(processor_t*, insn_t, reg_t, uint8_t); \
+    extern reg_t rv64e_##name(processor_t*, insn_t, reg_t, uint8_t); \
     if (name##_supported) { \
       register_insn((insn_desc_t) { \
         name##_match, \

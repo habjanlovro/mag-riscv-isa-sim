@@ -5,8 +5,8 @@
 #include "simif.h"
 #include "processor.h"
 
-mmu_t::mmu_t(simif_t* sim, processor_t* proc)
- : sim(sim), proc(proc),
+mmu_t::mmu_t(simif_t* sim, processor_t* proc, tag_memory_t *tag_memory)
+ : sim(sim), proc(proc), tag_mem(tag_memory),
 #ifdef RISCV_ENABLE_DUAL_ENDIAN
   target_big_endian(false),
 #endif
@@ -78,12 +78,20 @@ tlb_entry_t mmu_t::fetch_slow_path(reg_t vaddr)
 {
   reg_t paddr = translate(vaddr, sizeof(fetch_temp), FETCH, 0);
 
-  if (auto host_addr = sim->addr_to_mem(paddr)) {
-    return refill_tlb(vaddr, paddr, host_addr, FETCH);
+  auto host_addr = sim->addr_to_mem(paddr);
+  auto tag_host_addr = tag_mem->addr_to_mem(paddr);
+  if (host_addr && tag_host_addr) {
+    return refill_tlb(vaddr, paddr, host_addr, tag_host_addr, FETCH);
   } else {
-    if (!mmio_load(paddr, sizeof fetch_temp, (uint8_t*)&fetch_temp))
-      throw trap_instruction_access_fault(proc->state.v, vaddr, 0, 0);
-    tlb_entry_t entry = {(char*)&fetch_temp - vaddr, paddr - vaddr};
+    if (!mmio_load(paddr, sizeof fetch_temp, (uint8_t*)&fetch_temp) &&
+        !tag_mmio_load(paddr, sizeof tag_fetch_temp, (uint8_t*)&tag_fetch_temp)) {
+            throw trap_instruction_access_fault(proc->state.v, vaddr, 0, 0);
+          }
+    tlb_entry_t entry = {
+      (char*)&fetch_temp - vaddr,
+      (char*)&tag_fetch_temp - vaddr,
+      paddr - vaddr
+    };
     return entry;
   }
 }
@@ -131,6 +139,13 @@ bool mmu_t::mmio_load(reg_t addr, size_t len, uint8_t* bytes)
   return sim->mmio_load(addr, len, bytes);
 }
 
+bool mmu_t::tag_mmio_load(reg_t addr, size_t len, uint8_t* bytes) {
+  if (!mmio_ok(addr, LOAD)) {
+    return false;
+  }
+  return tag_mem->mmio_load(addr, len, bytes);
+}
+
 bool mmu_t::mmio_store(reg_t addr, size_t len, const uint8_t* bytes)
 {
   if (!mmio_ok(addr, STORE))
@@ -139,17 +154,29 @@ bool mmu_t::mmio_store(reg_t addr, size_t len, const uint8_t* bytes)
   return sim->mmio_store(addr, len, bytes);
 }
 
-void mmu_t::load_slow_path(reg_t addr, reg_t len, uint8_t* bytes, uint32_t xlate_flags)
+bool mmu_t::tag_mmio_store(reg_t addr, size_t len, const uint8_t* bytes)
+{
+  if (!mmio_ok(addr, STORE))
+    return false;
+
+  return tag_mem->mmio_store(addr, len, bytes);
+}
+
+
+void mmu_t::load_slow_path(reg_t addr, reg_t len, uint8_t* bytes, uint8_t* tag_bytes, uint32_t xlate_flags)
 {
   reg_t paddr = translate(addr, len, LOAD, xlate_flags);
 
-  if (auto host_addr = sim->addr_to_mem(paddr)) {
+  auto host_addr = sim->addr_to_mem(paddr);
+  auto tag_host_addr = tag_mem->addr_to_mem(paddr);
+  if (host_addr && tag_host_addr) {
     memcpy(bytes, host_addr, len);
+    memcpy(tag_bytes, tag_host_addr, len);
     if (tracer.interested_in_range(paddr, paddr + PGSIZE, LOAD))
       tracer.trace(paddr, len, LOAD);
     else if (xlate_flags == 0)
-      refill_tlb(addr, paddr, host_addr, LOAD);
-  } else if (!mmio_load(paddr, len, bytes)) {
+      refill_tlb(addr, paddr, host_addr, tag_host_addr, LOAD);
+  } else if (!mmio_load(paddr, len, bytes) && !tag_mmio_load(paddr, len, tag_bytes)) {
     throw trap_load_access_fault((proc) ? proc->state.v : false, addr, 0, 0);
   }
 
@@ -161,7 +188,7 @@ void mmu_t::load_slow_path(reg_t addr, reg_t len, uint8_t* bytes, uint32_t xlate
   }
 }
 
-void mmu_t::store_slow_path(reg_t addr, reg_t len, const uint8_t* bytes, uint32_t xlate_flags, bool actually_store)
+void mmu_t::store_slow_path(reg_t addr, reg_t len, const uint8_t* bytes, const uint8_t* tag_bytes, uint32_t xlate_flags, bool actually_store)
 {
   reg_t paddr = translate(addr, len, STORE, xlate_flags);
 
@@ -173,24 +200,28 @@ void mmu_t::store_slow_path(reg_t addr, reg_t len, const uint8_t* bytes, uint32_
   }
 
   if (actually_store) {
-    if (auto host_addr = sim->addr_to_mem(paddr)) {
+    auto host_addr = sim->addr_to_mem(paddr);
+    auto tag_host_addr = tag_mem->addr_to_mem(paddr);
+    if (host_addr && tag_host_addr) {
       memcpy(host_addr, bytes, len);
+      memcpy(tag_host_addr, tag_bytes, len);
       if (tracer.interested_in_range(paddr, paddr + PGSIZE, STORE))
         tracer.trace(paddr, len, STORE);
       else if (xlate_flags == 0)
-        refill_tlb(addr, paddr, host_addr, STORE);
-    } else if (!mmio_store(paddr, len, bytes)) {
+        refill_tlb(addr, paddr, host_addr, tag_host_addr, STORE);
+    } else if (!mmio_store(paddr, len, bytes) && !tag_mmio_store(paddr, len, tag_bytes)) {
       throw trap_store_access_fault((proc) ? proc->state.v : false, addr, 0, 0);
     }
   }
 }
 
-tlb_entry_t mmu_t::refill_tlb(reg_t vaddr, reg_t paddr, char* host_addr, access_type type)
+tlb_entry_t mmu_t::refill_tlb(reg_t vaddr, reg_t paddr, char* host_addr,
+    char *tag_host_addr, access_type type)
 {
   reg_t idx = (vaddr >> PGSHIFT) % TLB_ENTRIES;
   reg_t expected_tag = vaddr >> PGSHIFT;
 
-  tlb_entry_t entry = {host_addr - vaddr, paddr - vaddr};
+  tlb_entry_t entry = {host_addr - vaddr, tag_host_addr - vaddr, paddr - vaddr};
 
   if (proc && get_field(proc->state.mstatus->read(), MSTATUS_MPRV))
     return entry;

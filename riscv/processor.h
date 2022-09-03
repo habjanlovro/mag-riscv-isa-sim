@@ -21,13 +21,13 @@
 
 class processor_t;
 class mmu_t;
-typedef reg_t (*insn_func_t)(processor_t*, insn_t, reg_t);
+typedef reg_t (*insn_func_t)(processor_t*, insn_t, reg_t, uint8_t);
 class simif_t;
 class trap_t;
 class extension_t;
 class disassembler_t;
 
-reg_t illegal_instruction(processor_t* p, insn_t insn, reg_t pc);
+reg_t illegal_instruction(processor_t* p, insn_t insn, reg_t pc, uint8_t pc_tag);
 
 struct insn_desc_t
 {

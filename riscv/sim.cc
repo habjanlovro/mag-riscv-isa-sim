@@ -83,11 +83,11 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
 
   debug_module.add_device(&bus);
 
-  debug_mmu = new mmu_t(this, NULL);
+  debug_mmu = new mmu_t(this, NULL, tag_memory);
 
   for (size_t i = 0; i < cfg->nprocs(); i++) {
     procs[i] = new processor_t(&isa, cfg->varch(), this, cfg->hartids()[i], halted,
-                               log_file.get(), sout_, tm);
+                               log_file.get(), sout_, tag_memory);
   }
 
   make_dtb();

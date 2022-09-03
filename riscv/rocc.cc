@@ -5,7 +5,7 @@
 #include <cstdlib>
 
 #define customX(n) \
-  static reg_t c##n(processor_t* p, insn_t insn, reg_t pc) \
+  static reg_t c##n(processor_t* p, insn_t insn, reg_t pc, uint8_t pc_tag) \
   { \
     rocc_t* rocc = static_cast<rocc_t*>(p->get_extension()); \
     rocc_insn_union_t u; \

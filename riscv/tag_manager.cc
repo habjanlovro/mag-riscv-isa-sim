@@ -183,7 +183,7 @@ tag_manager_t::tag_manager_t(tag_memory_t *m, processor_t *p)
 		: memory(m), processor(p) {
 	if (memory && p) {
 		enabled = true;
-		mmu = new mmu_t(m, p);
+		mmu = new mmu_t(m, p, memory);
 	} else {
 		enabled = false;
 		mmu = nullptr;
@@ -196,13 +196,9 @@ tag_manager_t::~tag_manager_t() {
 	}
 }
 
-static uint8_t load_tag(mmu_t *mmu, reg_t addr) {
-	return 0;
-}
-
-void tag_manager_t::propagate(const reg_t pc, const reg_t rd) {
+void tag_manager_t::propagate(const uint8_t pc_addr_tag, const reg_t rd) {
 	if (enabled) {
-		uint8_t new_tag = memory->lca(pc_tag, load_tag(mmu, pc));
+		uint8_t new_tag = memory->lca(pc_tag, pc_addr_tag);
 		if (new_tag == TAG_INVALID) {
 			throw std::runtime_error("Error propagate(2)! lca(PC, @PC) invalid tag!");
 		}
@@ -210,9 +206,10 @@ void tag_manager_t::propagate(const reg_t pc, const reg_t rd) {
 	}
 }
 
-void tag_manager_t::propagate(const reg_t pc, const reg_t rd, const uint8_t rs) {
+void tag_manager_t::propagate(
+		const uint8_t pc_addr_tag, const reg_t rd, const uint8_t rs) {
 	if (enabled) {
-		uint8_t new_tag = memory->lca(pc_tag, load_tag(mmu, pc));
+		uint8_t new_tag = memory->lca(pc_tag, pc_addr_tag);
 		new_tag = memory->lca(new_tag, rs);
 		if (new_tag == TAG_INVALID) {
 			throw std::runtime_error("Error propagate(3)! lca(PC, RS) invalid tag!");
@@ -221,10 +218,10 @@ void tag_manager_t::propagate(const reg_t pc, const reg_t rd, const uint8_t rs) 
 	}
 }
 
-void tag_manager_t::propagate(const reg_t pc, const reg_t rd,
+void tag_manager_t::propagate(const uint8_t pc_addr_tag, const reg_t rd,
 		const uint8_t rs1, const uint8_t rs2) {
 	if (enabled) {
-		uint8_t new_tag = memory->lca(pc_tag, load_tag(mmu, pc));
+		uint8_t new_tag = memory->lca(pc_tag, pc_addr_tag);
 		new_tag = memory->lca(new_tag, rs1);
 		new_tag = memory->lca(new_tag, rs2);
 		if (new_tag == TAG_INVALID) {
@@ -234,11 +231,12 @@ void tag_manager_t::propagate(const reg_t pc, const reg_t rd,
 	}
 }
 
-void tag_manager_t::propagate_branch(const reg_t pc, const reg_t jmp_addr,
+// TODO is tag of jmp address neeeded?
+void tag_manager_t::propagate_branch(const uint8_t pc_addr_tag, const reg_t jmp_addr,
 		const uint8_t rs1, const uint8_t rs2) {
 	if (enabled) {
 		uint8_t new_tag = memory->lca(
-			load_tag(mmu, pc), load_tag(mmu, jmp_addr));
+			pc_addr_tag, 0); //load_tag(mmu, jmp_addr));
 		new_tag = memory->lca(pc_tag, new_tag);
 		new_tag = memory->lca(rs1, new_tag);
 		new_tag = memory->lca(rs2, new_tag);
@@ -249,14 +247,15 @@ void tag_manager_t::propagate_branch(const reg_t pc, const reg_t jmp_addr,
 	}
 }
 
-
-void tag_manager_t::load(const reg_t pc, reg_t rd, uint8_t rs, reg_t addr,
-		size_t num_bytes) {
+template<typename T>
+void tag_manager_t::load(const uint8_t pc_addr_tag, T tag_bytes, reg_t rd,
+		uint8_t rs) {
 	if (enabled) {
-		uint8_t new_tag = memory->lca(pc_tag, load_tag(mmu, pc));
+		uint8_t new_tag = memory->lca(pc_tag, pc_addr_tag);
 		new_tag = memory->lca(new_tag, rs);
-		for (size_t offset = 0; offset < num_bytes; offset++) {
-			memory->lca(new_tag, load_tag(mmu, addr + offset));
+		for (size_t i = 0; i < sizeof tag_bytes; i++) {
+			uint8_t tag = tag_bytes >> (8 * i);
+			new_tag = memory->lca(new_tag, tag);
 		}
 		if (new_tag == TAG_INVALID) {
 			throw std::runtime_error("Error load()! lca(PC, RS, *mem) invalid tag!");
@@ -265,49 +264,58 @@ void tag_manager_t::load(const reg_t pc, reg_t rd, uint8_t rs, reg_t addr,
 	}
 }
 
-void tag_manager_t::store(const reg_t pc, const uint8_t rs1, const uint8_t rs2,
-		reg_t addr, size_t num_bytes) {
+template void tag_manager_t::load<uint8_t>(const uint8_t pc_addr_tag, uint8_t tag_bytes, reg_t rd, uint8_t rs);
+template void tag_manager_t::load<int8_t>(const uint8_t pc_addr_tag, int8_t tag_bytes, reg_t rd, uint8_t rs);
+template void tag_manager_t::load<uint16_t>(const uint8_t pc_addr_tag, uint16_t tag_bytes, reg_t rd, uint8_t rs);
+template void tag_manager_t::load<int16_t>(const uint8_t pc_addr_tag, int16_t tag_bytes, reg_t rd, uint8_t rs);
+template void tag_manager_t::load<uint32_t>(const uint8_t pc_addr_tag, uint32_t tag_bytes, reg_t rd, uint8_t rs);
+template void tag_manager_t::load<int32_t>(const uint8_t pc_addr_tag, int32_t tag_bytes, reg_t rd, uint8_t rs);
+template void tag_manager_t::load<uint64_t>(const uint8_t pc_addr_tag, uint64_t tag_bytes, reg_t rd, uint8_t rs);
+template void tag_manager_t::load<int64_t>(const uint8_t pc_addr_tag, int64_t tag_bytes, reg_t rd, uint8_t rs);
+
+
+template<typename T>
+T tag_manager_t::store(const uint8_t pc_addr_tag, const uint8_t rs1,
+		const uint8_t rs2) {
 	if (enabled) {
-		// if (addr > 0xffffffff) {
-		// 	// std::cerr << "address > 32 bit" << std::endl;
-		// 	return;
-		// }
-		// if (pc > 0xffffffff) {
-		// 	return;
-		// }
-		uint8_t new_tag = memory->lca(pc_tag, load_tag(mmu, pc));
+		uint8_t new_tag = memory->lca(pc_tag, pc_addr_tag);
 		new_tag = memory->lca(new_tag, rs1);
 		new_tag = memory->lca(new_tag, rs2);
 		if (new_tag == TAG_INVALID) {
 			throw std::runtime_error("Error store()! lca(PC, RS1, RS2) invalid tag!");
 		}
-		for (size_t offset = 0; offset < num_bytes; offset++) {
+		T result;
+		for (size_t i = 0; i < sizeof result; i++) {
+			result |= new_tag << (8 * i);
 		}
+		return result;
 	}
+	return 0;
 }
 
-void tag_manager_t::jump(const reg_t pc, const reg_t rd, const reg_t addr) {
+template uint8_t tag_manager_t::store<uint8_t>(const uint8_t pc_addr_tag, const uint8_t rs1, const uint8_t rs2);
+template uint16_t tag_manager_t::store<uint16_t>(const uint8_t pc_addr_tag, const uint8_t rs1, const uint8_t rs2);
+template uint32_t tag_manager_t::store<uint32_t>(const uint8_t pc_addr_tag, const uint8_t rs1, const uint8_t rs2);
+template uint64_t tag_manager_t::store<uint64_t>(const uint8_t pc_addr_tag, const uint8_t rs1, const uint8_t rs2);
+
+
+void tag_manager_t::jump(const uint8_t pc_addr_tag, const reg_t rd) {
 	if (enabled) {
-		uint8_t new_tag = memory->lca(pc_tag, load_tag(mmu, pc));
-		uint8_t addr_tag = load_tag(mmu, addr);
-		new_tag = memory->lca(new_tag, addr_tag);
+		uint8_t new_tag = memory->lca(pc_tag, pc_addr_tag);
 		if (new_tag == TAG_INVALID) {
-			throw std::runtime_error("Erorr jump(2)! lca(@addr, PC) invalid tag!");
+			throw std::runtime_error("Erorr jump(2)! lca(PC) invalid tag!");
 		}
 		pc_tag = new_tag;
 		XPR_tags.write(rd, new_tag);
 	}
 }
 
-void tag_manager_t::jump(const reg_t pc, const reg_t rd, const uint8_t rs,
-		const reg_t addr) {
+void tag_manager_t::jump(const uint8_t pc_addr_tag, const reg_t rd, const uint8_t rs) {
 	if (enabled) {
-		uint8_t new_tag = memory->lca(pc_tag, load_tag(mmu, pc));
-		uint8_t addr_tag = load_tag(mmu, addr);
-		new_tag = memory->lca(new_tag, load_tag(mmu, addr));
+		uint8_t new_tag = memory->lca(pc_tag, pc_addr_tag);
 		new_tag = memory->lca(new_tag, rs);
 		if (new_tag == TAG_INVALID) {
-			throw std::runtime_error("Error jump(3)! lca(@addr, PC, RS) invalid tag!");
+			throw std::runtime_error("Error jump(3)! lca(PC, RS) invalid tag!");
 		}
 		pc_tag = new_tag;
 		XPR_tags.write(rd, new_tag);

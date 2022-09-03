@@ -46,10 +46,6 @@ class tag_memory_t : public simif_t {
 
 		void add_mem(const reg_t addr, abstract_device_t *device);
 
-		uint8_t fetch_tag(const reg_t loc);
-		void store_tag(reg_t loc, size_t size, uint8_t *buffer);
-		void load_tag(reg_t loc, const size_t size, uint8_t *buffer);
-
 		  // should return NULL for MMIO addresses
 		char* addr_to_mem(reg_t addr);
 		// used for MMIO addresses
@@ -86,21 +82,23 @@ class tag_manager_t {
 		tag_manager_t(tag_memory_t *m, processor_t *p);
 		~tag_manager_t();
 
-		void propagate(const reg_t pc, const reg_t rd);
-		void propagate(const reg_t pc, const reg_t rd, const uint8_t rs);
-		void propagate(const reg_t pc, const reg_t rd, const uint8_t rs1,
+		void propagate(const uint8_t pc_addr_tag, const reg_t rd);
+		void propagate(const uint8_t pc_addr_tag, const reg_t rd, const uint8_t rs);
+		void propagate(const uint8_t pc_addr_tag, const reg_t rd, const uint8_t rs1,
 			const uint8_t rs2);
 
-		void propagate_branch(const reg_t pc, const reg_t jmp_addr,
+		void propagate_branch(const uint8_t pc_addr_tag, const reg_t jmp_addr,
 			const uint8_t rs1, const uint8_t rs2);
 
-		void load(const reg_t pc, reg_t rd, uint8_t rs, reg_t addr,
-			size_t num_bytes);
-		void store(const reg_t pc, const uint8_t rs1, const uint8_t rs2,
-			reg_t addr, size_t num_bytes);
 
-		void jump(const reg_t pc, const reg_t rd, const reg_t addr);
-		void jump(const reg_t pc, const reg_t rd, const uint8_t rs, const reg_t addr);
+		template<typename T>
+		void load(const uint8_t pc_addr_tag, T tag_bytes, reg_t rd, uint8_t rs);
+
+		template<typename T>
+		T store(const uint8_t pc_addr_tag, const uint8_t rs1, const uint8_t rs2);
+
+		void jump(const uint8_t pc_addr_tag, const reg_t rd);
+		void jump(const uint8_t pc_addr_tag, const reg_t rd, const uint8_t rs);
 
 
 		void print();
