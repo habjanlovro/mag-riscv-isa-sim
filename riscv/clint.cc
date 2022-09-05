@@ -14,10 +14,11 @@ clint_t::clint_t(std::vector<processor_t*>& procs, uint64_t freq_hz, bool real_t
 }
 
 clint_t::clint_t(const clint_t& that) :
+    procs(that.procs),
     freq_hz(that.freq_hz), real_time(that.real_time),
     real_time_ref_secs(that.real_time_ref_secs),
     real_time_ref_usecs(that.real_time_ref_usecs),
-    mtime(that.mtime), procs(that.procs), mtimecmp(that.mtimecmp) {
+    mtime(that.mtime), mtimecmp(that.mtimecmp) {
 }
 
 /* 0000 msip hart 0

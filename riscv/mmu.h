@@ -324,11 +324,14 @@ public:
   }
 
   inline uint8_t compute_pc_tag(uint64_t data) {
-    uint8_t r = (uint8_t) data;
-    for (size_t i = 8; i < 64; i += 8) {
-	  r = tag_mem->lca(r, (uint8_t) (data >> i));
-    }
-    return r;
+    if (tag_mem->enabled) {
+      uint8_t r = (uint8_t) data;
+      for (size_t i = 8; i < 64; i += 8) {
+      r = tag_mem->lca(r, (uint8_t) (data >> i));
+      }
+      return r;
+      }
+    return 0;
   }
 
   inline icache_entry_t* refill_icache(reg_t addr, icache_entry_t* entry)

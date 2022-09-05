@@ -15,12 +15,13 @@
 
 
 tag_memory_t::tag_memory_t() : tag_fd(-1), enabled(false) {
+tag_memory_t::tag_memory_t() : enabled(false), tag_fd(-1) {
 	bus = new bus_t;
 }
 
 tag_memory_t::tag_memory_t(
 		const std::string& policy_file,
-		const std::string& tag_file) : tag_fd(-1), enabled(true) {
+		const std::string& tag_file) : enabled(true), tag_fd(-1) {
 	std::ifstream policy_file_stream(policy_file);
 	if (!policy_file_stream.is_open()) {
 		std::ostringstream oss;
@@ -110,7 +111,8 @@ tag_memory_t::tag_memory_t(
 tag_memory_t::~tag_memory_t() {
 	if (tag_fd > 0) {
 		if (close(tag_fd) < 0) {
-			std::cerr << "Failed to close file descriptor! Error: " << strerror(errno) << std::endl;
+			std::cerr << "Failed to close file descriptor! Error: "
+				<< strerror(errno) << std::endl;
 		}
 	}
 	delete bus;
@@ -125,10 +127,8 @@ void tag_memory_t::add_mem(const reg_t addr, abstract_device_t *device) {
 	} else if (auto d = dynamic_cast<clint_t*>(device)) {
 		duplicated = new clint_t(*d);
 	} else {
-		std::cerr << "Failed add_mem" << std::endl;
-		std::exit(5);
+		std::exit(1);
 	}
-	std::cerr << "adding " << std::hex << addr << std::endl;
 	bus->add_device(addr, duplicated);
 }
 
@@ -172,11 +172,6 @@ void tag_memory_t::copy_tag_mem(reg_t pbuf, reg_t len, reg_t off) {
 	}
 	std::vector<uint8_t> buf(len);
 	ssize_t ret = pread(tag_fd, buf.data(), len, off);
-	for (auto& c : buf) {
-		std::cerr << (int) c;
-	}
-	std::cerr << std::endl;
-	std::cerr << "PREAD " << ret << std::endl;
 	if (ret > 0) {
 		bus->store(pbuf, len, buf.data());
 	}

@@ -41,7 +41,7 @@ class tag_memory_t : public simif_t {
 		virtual ~tag_memory_t();
 
 		inline uint8_t lca(const uint8_t x, const uint8_t y) const {
-			return enabled ?  policy[x][y] : 0;
+			return policy[x][y];
 		}
 
 		void add_mem(const reg_t addr, abstract_device_t *device);
@@ -56,16 +56,9 @@ class tag_memory_t : public simif_t {
 
   		const char* get_symbol(uint64_t addr);
 
-		const std::vector<tag_region_data_t>& get_tagged_data() const {
-			return tagged_data;
-		}
-
-		void say_hello() {
-			std::cerr << "Hello from tag memory!" << std::endl;
-		}
-
 		void copy_tag_mem(reg_t pbuf, reg_t len, reg_t off);
 
+		bool enabled;
 	private:
 		std::vector<std::vector<uint8_t>> policy;
 		std::map<int, std::string> names;
@@ -73,7 +66,6 @@ class tag_memory_t : public simif_t {
 		std::map<size_t, tag_pg_t> perimiter_guards;
 		bus_t *bus;
 		int tag_fd;
-		bool enabled;
 };
 
 
