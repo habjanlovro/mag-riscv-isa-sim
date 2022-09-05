@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <vector>
 #include <map>
+#include <exception>
 
 #include "devices.h"
 #include "simif.h"
@@ -14,8 +15,6 @@
 
 class processor_t;
 class mmu_t;
-
-#include <iostream>
 
 
 struct tag_region_data_t {
@@ -32,6 +31,18 @@ struct tag_pg_t {
 	tag_pg_t(const std::string& name, const size_t fd, const uint8_t tag)
 		: name(name), fd(fd), tag(tag) {}
 	tag_pg_t() : tag(255) {}
+};
+
+class tag_pg_exception_t : public std::exception {
+	public:
+		tag_pg_exception_t(std::string pg_name, uint8_t pg_tag, reg_t pbuf, uint8_t tag);
+		const char *what() const noexcept override;
+	private:
+		std::string pg_name;
+		uint8_t pg_tag;
+		reg_t pbuf;
+		uint8_t tag;
+		std::string msg;
 };
 
 class tag_memory_t : public simif_t {
@@ -57,6 +68,9 @@ class tag_memory_t : public simif_t {
   		const char* get_symbol(uint64_t addr);
 
 		void copy_tag_mem(reg_t pbuf, reg_t len, reg_t off);
+
+		void pg_in(reg_t fd, reg_t pbuf, reg_t len);
+		void pg_out(reg_t fd, reg_t pbuf, reg_t len);
 
 		bool enabled;
 	private:

@@ -14,7 +14,21 @@
 #include "processor.h"
 
 
-tag_memory_t::tag_memory_t() : tag_fd(-1), enabled(false) {
+tag_pg_exception_t::tag_pg_exception_t(std::string pg_name, uint8_t pg_tag,
+		reg_t pbuf, uint8_t tag) :
+		pg_name(pg_name), pg_tag(pg_tag), pbuf(pbuf), tag(tag) {
+	std::ostringstream oss;
+	oss << "Perimiter guard exception! PG: " << pg_name
+		<< " PG tag: " << (int) pg_tag << " Buffer tag: " << (int) tag
+		<< " Address: 0x" << std::hex << pbuf << std::dec;
+	msg = oss.str();
+}
+
+const char *tag_pg_exception_t::what() const noexcept {
+	return msg.c_str();
+}
+
+
 tag_memory_t::tag_memory_t() : enabled(false), tag_fd(-1) {
 	bus = new bus_t;
 }
@@ -174,6 +188,35 @@ void tag_memory_t::copy_tag_mem(reg_t pbuf, reg_t len, reg_t off) {
 	ssize_t ret = pread(tag_fd, buf.data(), len, off);
 	if (ret > 0) {
 		bus->store(pbuf, len, buf.data());
+	}
+}
+
+void tag_memory_t::pg_in(reg_t fd, reg_t pbuf, reg_t len) {
+	try {
+		auto pg = perimiter_guards.at(fd);
+		std::vector<uint8_t> data(len, pg.tag);
+		mmio_store(pbuf, len, data.data());
+	} catch (...) {
+		return;
+	}
+}
+
+void tag_memory_t::pg_out(reg_t fd, reg_t pbuf, reg_t len) {
+	try {
+		auto pg = perimiter_guards.at(fd);
+		std::vector<uint8_t> data(len);
+		if (!mmio_load(pbuf, len, data.data())) {
+			throw std::runtime_error("PG FAILED!");
+		}
+		for (auto& tag : data) {
+			if (lca(pg.tag, tag) != tag) {
+				throw tag_pg_exception_t(pg.name, pg.tag, pbuf, tag);
+			}
+		}
+	} catch (tag_pg_exception_t& e) {
+		throw;
+	} catch (...) {
+		return;
 	}
 }
 

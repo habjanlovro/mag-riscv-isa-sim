@@ -219,6 +219,9 @@ static reg_t sysret_errno(sreg_t ret)
 
 reg_t syscall_t::sys_read(reg_t fd, reg_t pbuf, reg_t len, reg_t a3, reg_t a4, reg_t a5, reg_t a6)
 {
+  if (htif->get_tag_memory()) {
+    htif->get_tag_memory()->pg_in(fd, pbuf, len);
+  }
   std::vector<char> buf(len);
   ssize_t ret = read(fds.lookup(fd), buf.data(), len);
   reg_t ret_errno = sysret_errno(ret);
@@ -230,7 +233,7 @@ reg_t syscall_t::sys_read(reg_t fd, reg_t pbuf, reg_t len, reg_t a3, reg_t a4, r
 reg_t syscall_t::sys_pread(reg_t fd, reg_t pbuf, reg_t len, reg_t off, reg_t a4, reg_t a5, reg_t a6)
 {
   if (htif->get_tag_memory()) {
-    htif->get_tag_memory()->copy_tag_mem(pbuf, len, off);
+      htif->get_tag_memory()->copy_tag_mem(pbuf, len, off);
   }
   std::vector<char> buf(len);
   ssize_t ret = pread(fds.lookup(fd), buf.data(), len, off);
@@ -242,6 +245,14 @@ reg_t syscall_t::sys_pread(reg_t fd, reg_t pbuf, reg_t len, reg_t off, reg_t a4,
 
 reg_t syscall_t::sys_write(reg_t fd, reg_t pbuf, reg_t len, reg_t a3, reg_t a4, reg_t a5, reg_t a6)
 {
+  if (htif->get_tag_memory()) {
+    try {
+      htif->get_tag_memory()->pg_out(fd, pbuf, len);
+    } catch (tag_pg_exception_t& e) {
+      std::cerr << e.what() << std::endl;
+      return sysret_errno(-1);
+    }
+  }
   std::vector<char> buf(len);
   memif->read(pbuf, len, buf.data());
   reg_t ret = sysret_errno(write(fds.lookup(fd), buf.data(), len));
