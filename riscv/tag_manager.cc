@@ -74,7 +74,7 @@ tag_memory_t::tag_memory_t(
 	for (int i = 0; i < num_pgs; i++) {
 		line_num++;
 
-		std::string name, fd_s, tag_s;
+		std::string name, file, fd_s, tag_s;
 		size_t fd;
 		uint8_t tag;
 
@@ -82,15 +82,18 @@ tag_memory_t::tag_memory_t(
 		std::stringstream line_stream(line);
 		line_stream >> name >> fd_s >> tag_s;
 
-		fd = std::stoul(fd_s);
+		try {
+			fd = std::stoul(fd_s);
+		} catch (...) {
+			fd = -1;
+			file = fd_s;
+		}
 		tag = std::stoul(tag_s);
 
-		tag_pg_t pg(name, fd, tag);
-		if (perimiter_guards.find(fd) == perimiter_guards.end()) {
-			perimiter_guards[fd] = pg;
-		} else {
-			std::cerr << "Skipping duplicate definition of perimiter guard for "
-				<< "file descriptor '" << (int) fd << "'" << std::endl;
+		tag_pg_t pg(name, file, fd, tag);
+		perimiter_guards.push_back(pg);
+		if (fd >= 0 && fd <= 2) {
+			active_perimiter_guards[fd] = pg;
 		}
 	}
 	while (std::getline(policy_file_stream, line)) {
@@ -193,7 +196,7 @@ void tag_memory_t::copy_tag_mem(reg_t pbuf, reg_t len, reg_t off) {
 
 void tag_memory_t::pg_in(reg_t fd, reg_t pbuf, reg_t len) {
 	try {
-		auto pg = perimiter_guards.at(fd);
+		auto pg = active_perimiter_guards.at(fd);
 		std::vector<uint8_t> data(len, pg.tag);
 		mmio_store(pbuf, len, data.data());
 	} catch (...) {
@@ -203,13 +206,14 @@ void tag_memory_t::pg_in(reg_t fd, reg_t pbuf, reg_t len) {
 
 void tag_memory_t::pg_out(reg_t fd, reg_t pbuf, reg_t len) {
 	try {
-		auto pg = perimiter_guards.at(fd);
+		auto pg = active_perimiter_guards.at(fd);
 		std::vector<uint8_t> data(len);
 		if (!mmio_load(pbuf, len, data.data())) {
 			throw std::runtime_error("PG FAILED!");
 		}
 		for (auto& tag : data) {
-			if (lca(pg.tag, tag) != tag) {
+			auto check = lca(pg.tag, tag);
+			if (check == TAG_INVALID || check != tag) {
 				throw tag_pg_exception_t(pg.name, pg.tag, pbuf, tag);
 			}
 		}
@@ -218,6 +222,19 @@ void tag_memory_t::pg_out(reg_t fd, reg_t pbuf, reg_t len) {
 	} catch (...) {
 		return;
 	}
+}
+
+void tag_memory_t::register_fd(const std::string& file, int fd) {
+	for (auto& pg : perimiter_guards) {
+		if (pg.file == file) {
+			active_perimiter_guards[fd] = pg;
+			break;
+		}
+	}
+}
+
+void tag_memory_t::unregister_fd(int fd) {
+	active_perimiter_guards.erase(fd);
 }
 
 

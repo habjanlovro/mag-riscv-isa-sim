@@ -427,6 +427,9 @@ int main(int argc, char** argv)
       tag_memory = new tag_memory_t(policy, tag);
     } catch(std::runtime_error& err) {
       std::cerr << err.what() << std::endl;
+      tag_memory = new tag_memory_t;
+    } catch (...) {
+      tag_memory = new tag_memory_t;
     }
   });
 

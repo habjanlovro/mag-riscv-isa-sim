@@ -25,12 +25,19 @@ struct tag_region_data_t {
 
 struct tag_pg_t {
 	std::string name;
-	size_t fd;
+	std::string file;
+	int fd;
 	uint8_t tag;
 
-	tag_pg_t(const std::string& name, const size_t fd, const uint8_t tag)
+	tag_pg_t(const std::string& name, const int fd, const uint8_t tag)
 		: name(name), fd(fd), tag(tag) {}
-	tag_pg_t() : tag(255) {}
+
+	tag_pg_t(const std::string& name, const std::string& file, const int fd,
+		const uint8_t tag) : name(name), file(file), fd(fd), tag(tag) {}
+
+	tag_pg_t(const std::string& name, const std::string& file, const uint8_t tag)
+		: name(name), file(file), fd(-1), tag(tag) {}
+	tag_pg_t() : fd(-1), tag(255) {}
 };
 
 class tag_pg_exception_t : public std::exception {
@@ -72,12 +79,16 @@ class tag_memory_t : public simif_t {
 		void pg_in(reg_t fd, reg_t pbuf, reg_t len);
 		void pg_out(reg_t fd, reg_t pbuf, reg_t len);
 
+		void register_fd(const std::string& name, int fd);
+		void unregister_fd(int fd);
+
 		bool enabled;
 	private:
 		std::vector<std::vector<uint8_t>> policy;
 		std::map<int, std::string> names;
 		std::vector<tag_region_data_t> tagged_data;
-		std::map<size_t, tag_pg_t> perimiter_guards;
+		std::map<size_t, tag_pg_t> active_perimiter_guards;
+		std::vector<tag_pg_t> perimiter_guards;
 		bus_t *bus;
 		int tag_fd;
 };

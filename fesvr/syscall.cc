@@ -271,6 +271,9 @@ reg_t syscall_t::sys_close(reg_t fd, reg_t a1, reg_t a2, reg_t a3, reg_t a4, reg
 {
   if (close(fds.lookup(fd)) < 0)
     return sysret_errno(-1);
+  if (htif->get_tag_memory()) {
+    htif->get_tag_memory()->unregister_fd(fd);
+  }
   fds.dealloc(fd);
   return 0;
 }
@@ -346,6 +349,9 @@ reg_t syscall_t::sys_openat(reg_t dirfd, reg_t pname, reg_t len, reg_t flags, re
   int fd = sysret_errno(AT_SYSCALL(openat, dirfd, name.data(), flags, mode));
   if (fd < 0)
     return sysret_errno(-1);
+  if (htif->get_tag_memory()) {
+    htif->get_tag_memory()->register_fd(std::string(name.data()), fd);
+  }
   return fds.alloc(fd);
 }
 
