@@ -186,11 +186,30 @@ private:
 #define WRITE_RD(value) WRITE_REG(insn.rd(), value)
 
 #define TAG (*p->get_tag_manager())
+
 #define READ_TAG(reg) TAG.XPR_tags[reg]
+#define READ_TAG_F(reg) TAG.FPR_tags[reg]
+
 #define TAG_RS1 READ_TAG(insn.rs1())
+#define TAG_RS1_C READ_TAG(insn.rvc_rs1())
+#define TAG_RS1_CS READ_TAG(insn.rvc_rs1s())
+#define TAG_RS1_F READ_TAG_F(insn.rs1())
+#define TAG_RS1_FC READ_TAG_F(insn.rvc_rs1())
+#define TAG_RS1_FCS READ_TAG_F(insn.rvc_rs1s())
+
 #define TAG_RS2 READ_TAG(insn.rs2())
+#define TAG_RS2_C READ_TAG(insn.rvc_rs2())
+#define TAG_RS2_CS READ_TAG(insn.rvc_rs2s())
+#define TAG_RS2_F READ_TAG_F(insn.rs2())
+#define TAG_RS2_FC READ_TAG_F(insn.rvc_rs2())
+#define TAG_RS2_FCS READ_TAG_F(insn.rvc_rs2s())
+
 #define TAG_RS3 READ_TAG(insn.rs3())
+#define TAG_RS3_F READ_TAG_F(insn.rs3())
+
 #define TAG_DEST (insn.rd())
+
+#define TAG_C_SP READ_TAG(X_SP)
 
 #ifndef RISCV_ENABLE_COMMITLOG
 # define WRITE_REG(reg, value) ({ CHECK_REG(reg); STATE.XPR.write(reg, value); })

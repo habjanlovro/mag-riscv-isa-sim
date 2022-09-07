@@ -1,4 +1,6 @@
 require_extension('C');
 require_extension('D');
 require_fp;
-WRITE_FRD(f64(MMU.load_uint64(RVC_SP + insn.rvc_ldsp_imm()).first));
+auto l = MMU.load_uint64(RVC_SP + insn.rvc_ldsp_imm());
+TAG.load<uint64_t>(pc_tag, l.second, TAG_DEST, TAG_C_SP, true);
+WRITE_FRD(f64(l.first));

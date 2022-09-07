@@ -212,23 +212,28 @@ public:
       }) \
     }
 
-  void store_float128(reg_t addr, float128_t val)
+  void store_float128(reg_t addr, std::pair<float128_t, float128_t> val)
   {
 #ifndef RISCV_ENABLE_MISALIGNED
     if (unlikely(addr & (sizeof(float128_t)-1)))
       throw trap_store_address_misaligned((proc) ? proc->state.v : false, addr, 0, 0);
 #endif
-    store_uint64(addr, std::make_pair(val.v[0], val.v[0]));
-    store_uint64(addr + 8, std::make_pair(val.v[1], val.v[1]));
+    store_uint64(addr, std::make_pair(val.first.v[0], val.second.v[0]));
+    store_uint64(addr + 8, std::make_pair(val.first.v[1], val.second.v[1]));
   }
 
-  float128_t load_float128(reg_t addr)
+  std::pair<float128_t, float128_t> load_float128(reg_t addr)
   {
 #ifndef RISCV_ENABLE_MISALIGNED
     if (unlikely(addr & (sizeof(float128_t)-1)))
       throw trap_load_address_misaligned((proc) ? proc->state.v : false, addr, 0, 0);
 #endif
-    return (float128_t){load_uint64(addr).first, load_uint64(addr + 8).first};
+    auto load_one = load_uint64(addr);
+    auto load_two = load_uint64(addr + 8);
+    return std::make_pair(
+      (float128_t){load_one.first, load_two.first},
+      (float128_t){load_one.second, load_two.second}
+    );
   }
 
   // store value to memory at aligned address

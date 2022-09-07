@@ -89,23 +89,34 @@ class tag_manager_t {
 		tag_manager_t(tag_memory_t *m, processor_t *p);
 		~tag_manager_t();
 
-		void propagate(const uint8_t pc_addr_tag, const reg_t rd);
-		void propagate(const uint8_t pc_addr_tag, const reg_t rd, const uint8_t rs);
-		void propagate(const uint8_t pc_addr_tag, const reg_t rd, const uint8_t rs1,
-			const uint8_t rs2);
+		void propagate(const uint8_t pc_addr_tag, const reg_t rd,
+			bool f = false);
+		void propagate(const uint8_t pc_addr_tag, const reg_t rd,
+			const uint8_t rs, bool f = false);
+		void propagate(const uint8_t pc_addr_tag, const reg_t rd,
+			const uint8_t rs1, const uint8_t rs2, bool f = false);
+		void propagate(const uint8_t pc_addr_tag, const reg_t rd,
+			const uint8_t rs1, const uint8_t rs2, const uint8_t rs3,
+			bool f = false);
 
+		void propagate_branch(const uint8_t pc_addr_tag, const reg_t jmp_addr);
+		void propagate_branch(const uint8_t pc_addr_tag, const reg_t jmp_addr,
+			const uint8_t rs1);
 		void propagate_branch(const uint8_t pc_addr_tag, const reg_t jmp_addr,
 			const uint8_t rs1, const uint8_t rs2);
 
 
 		template<typename T>
-		void load(const uint8_t pc_addr_tag, T tag_bytes, reg_t rd, uint8_t rs);
+		void load(const uint8_t pc_addr_tag, T tag_bytes, reg_t rd, uint8_t rs,
+			bool f = false);
 
 		template<typename T>
 		T store(const uint8_t pc_addr_tag, const uint8_t rs1, const uint8_t rs2);
 
-		void jump(const uint8_t pc_addr_tag, const reg_t rd);
-		void jump(const uint8_t pc_addr_tag, const reg_t rd, const uint8_t rs);
+		void jump(const uint8_t pc_addr_tag, const reg_t jmp_addr,
+			const reg_t rd);
+		void jump(const uint8_t pc_addr_tag, const reg_t jmp_addr,
+			const reg_t rd, const uint8_t rs);
 
 
 		void print();
