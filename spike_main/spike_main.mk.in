@@ -6,10 +6,10 @@ spike_main_subproject_deps = \
 	riscv \
 
 spike_main_install_prog_srcs = \
-	spike.cc \
-	spike-log-parser.cc \
-	xspike.cc \
-	termios-xspike.cc \
+	spike-tag.cc \
+	spike-tag-log-parser.cc \
+	xspike-tag.cc \
+	termios-xspike-tag.cc \
 
 spike_main_hdrs = \
 

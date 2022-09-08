@@ -18,6 +18,8 @@
 
 #include "tag_manager.h"
 
+#include <chrono>
+
 static void help(int exit_code = 1)
 {
   fprintf(stderr, "Spike RISC-V ISA Simulator " SPIKE_VERSION "\n\n");
@@ -429,6 +431,7 @@ int main(int argc, char** argv)
       std::cerr << err.what() << std::endl;
       tag_memory = new tag_memory_t;
     } catch (...) {
+      std::cerr << "Failed to initialize tag memory!" << std::endl;
       tag_memory = new tag_memory_t;
     }
   });
@@ -550,8 +553,17 @@ int main(int argc, char** argv)
   s.configure_log(log, log_commits);
   s.set_histogram(histogram);
 
+  auto start_time = std::chrono::high_resolution_clock::now();
   auto return_code = s.run();
-  s.get_core(0)->get_tag_manager()->print();
+  auto end_time = std::chrono::high_resolution_clock::now();
+
+  std::cerr << "Time: "
+    << std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count()
+    << std::endl;
+
+  if (s.get_core(0)->get_tag_manager()) {
+    s.get_core(0)->get_tag_manager()->print();
+  }
 
   for (auto& mem : mems)
     delete mem.second;

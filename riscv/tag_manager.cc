@@ -195,32 +195,36 @@ void tag_memory_t::copy_tag_mem(reg_t pbuf, reg_t len, reg_t off) {
 }
 
 void tag_memory_t::pg_in(reg_t fd, reg_t pbuf, reg_t len) {
-	try {
-		auto pg = active_perimiter_guards.at(fd);
-		std::vector<uint8_t> data(len, pg.tag);
-		mmio_store(pbuf, len, data.data());
-	} catch (...) {
-		return;
+	if (enabled) {
+		try {
+			auto pg = active_perimiter_guards.at(fd);
+			std::vector<uint8_t> data(len, pg.tag);
+			mmio_store(pbuf, len, data.data());
+		} catch (...) {
+			return;
+		}
 	}
 }
 
 void tag_memory_t::pg_out(reg_t fd, reg_t pbuf, reg_t len) {
-	try {
-		auto pg = active_perimiter_guards.at(fd);
-		std::vector<uint8_t> data(len);
-		if (!mmio_load(pbuf, len, data.data())) {
-			throw std::runtime_error("PG FAILED!");
-		}
-		for (auto& tag : data) {
-			auto check = lca(pg.tag, tag);
-			if (check == TAG_INVALID || check != tag) {
-				throw tag_pg_exception_t(pg.name, pg.tag, pbuf, tag);
+	if (enabled) {
+		try {
+			auto pg = active_perimiter_guards.at(fd);
+			std::vector<uint8_t> data(len);
+			if (!mmio_load(pbuf, len, data.data())) {
+				throw std::runtime_error("PG FAILED!");
 			}
+			for (auto& tag : data) {
+				auto check = lca(pg.tag, tag);
+				if (check == TAG_INVALID || check != tag) {
+					throw tag_pg_exception_t(pg.name, pg.tag, pbuf, tag);
+				}
+			}
+		} catch (tag_pg_exception_t& e) {
+			throw;
+		} catch (...) {
+			return;
 		}
-	} catch (tag_pg_exception_t& e) {
-		throw;
-	} catch (...) {
-		return;
 	}
 }
 
@@ -242,7 +246,7 @@ tag_manager_t::tag_manager_t() : enabled(false) {}
 
 tag_manager_t::tag_manager_t(tag_memory_t *m, processor_t *p)
 		: memory(m), processor(p) {
-	if (memory && p) {
+	if (memory && memory->enabled && p) {
 		enabled = true;
 		mmu = p->get_mmu();
 	} else {
