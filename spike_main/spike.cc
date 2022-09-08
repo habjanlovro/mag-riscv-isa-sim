@@ -16,6 +16,8 @@
 #include <fstream>
 #include "../VERSION"
 
+#include <chrono>
+
 static void help(int exit_code = 1)
 {
   fprintf(stderr, "Spike RISC-V ISA Simulator " SPIKE_VERSION "\n\n");
@@ -519,7 +521,13 @@ int main(int argc, char** argv)
   s.configure_log(log, log_commits);
   s.set_histogram(histogram);
 
+  auto start_time = std::chrono::high_resolution_clock::now();
   auto return_code = s.run();
+  auto end_time = std::chrono::high_resolution_clock::now();
+
+  std::cerr << "Time: "
+    << std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count()
+    << std::endl;
 
   for (auto& mem : mems)
     delete mem.second;
