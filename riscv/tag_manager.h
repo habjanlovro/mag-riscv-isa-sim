@@ -122,7 +122,8 @@ class tag_manager_t {
 			bool f = false);
 
 		template<typename T>
-		T store(const uint8_t pc_addr_tag, const uint8_t rs1, const uint8_t rs2);
+		T store(const uint8_t pc_addr_tag, const reg_t store_addr,
+			const uint8_t rs1, const uint8_t rs2);
 
 		void jump(const uint8_t pc_addr_tag, const reg_t jmp_addr,
 			const reg_t rd);
