@@ -720,6 +720,7 @@ enable_histogram
 enable_dirty
 enable_misaligned
 enable_dual_endian
+enable_tag_jump_check
 '
       ac_precious_vars='build_alias
 host_alias
@@ -1370,6 +1371,8 @@ Optional Features:
                           stores
   --enable-dual-endian    Enable support for running target in either
                           endianness
+  --enable-tag-jump-check Enable support for tag checking the tags of jump
+                          address
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -6115,6 +6118,19 @@ if test "x$enable_dual_endian" = "xyes"; then :
 
 
 $as_echo "#define RISCV_ENABLE_DUAL_ENDIAN /**/" >>confdefs.h
+
+
+fi
+
+# Check whether --enable-tag-jump-check was given.
+if test "${enable_tag_jump_check+set}" = set; then :
+  enableval=$enable_tag_jump_check;
+fi
+
+if test "x$enable_tag_jump_check" = "xyes"; then :
+
+
+$as_echo "#define TAG_JUMP_CHECK /**/" >>confdefs.h
 
 
 fi

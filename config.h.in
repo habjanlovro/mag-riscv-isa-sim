@@ -126,6 +126,9 @@
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
+/* Enable support for tag checking the tags of jump address */
+#undef TAG_JUMP_CHECK
+
 /* Default value for --target switch */
 #undef TARGET_ARCH
 
