@@ -220,7 +220,9 @@ static reg_t sysret_errno(sreg_t ret)
 reg_t syscall_t::sys_read(reg_t fd, reg_t pbuf, reg_t len, reg_t a3, reg_t a4, reg_t a5, reg_t a6)
 {
   std::vector<char> buf(len);
-  std::vector<uint8_t> tag_buf = htif->get_tag_memory()->pg_in(fd, pbuf, len);
+  std::vector<uint8_t> tag_buf = (htif->get_tag_memory()) ?
+    htif->get_tag_memory()->pg_in(fd, pbuf, len) :
+    std::vector<uint8_t>(len, 0);
   ssize_t ret = read(fds.lookup(fd), buf.data(), len);
   reg_t ret_errno = sysret_errno(ret);
   if (ret > 0)
@@ -231,12 +233,9 @@ reg_t syscall_t::sys_read(reg_t fd, reg_t pbuf, reg_t len, reg_t a3, reg_t a4, r
 reg_t syscall_t::sys_pread(reg_t fd, reg_t pbuf, reg_t len, reg_t off, reg_t a4, reg_t a5, reg_t a6)
 {
   std::vector<char> buf(len);
-  std::vector<uint8_t> tag_buf;
-  if (htif->get_tag_memory()) {
-    tag_buf = htif->get_tag_memory()->copy_tag_mem(pbuf, len, off);
-  } else {
-    tag_buf.resize(len, 0);
-  }
+  std::vector<uint8_t> tag_buf = (htif->get_tag_memory()) ?
+    htif->get_tag_memory()->copy_tag_mem(pbuf, len, off) :
+    std::vector<uint8_t>(len, 0);
   ssize_t ret = pread(fds.lookup(fd), buf.data(), len, off);
   reg_t ret_errno = sysret_errno(ret);
   if (ret > 0)
@@ -249,11 +248,11 @@ reg_t syscall_t::sys_write(reg_t fd, reg_t pbuf, reg_t len, reg_t a3, reg_t a4, 
   std::vector<char> buf(len);
   std::vector<uint8_t> tag_buf(len);
   memif->read(pbuf, len, buf.data(), tag_buf.data());
-  try {
-    htif->get_tag_memory()->pg_out(fd, pbuf, tag_buf);
-  } catch (tag_pg_exception_t& e) {
-    std::cerr << e.what() << std::endl;
-    return sysret_errno(-1);
+  if (htif->get_tag_memory()) {
+    if (!htif->get_tag_memory()->pg_out(fd, pbuf, tag_buf)) {
+      std::cerr << "Failed PG at 0x" << std::hex << pbuf << std::dec << " Length: " << len << std::endl;
+      return sysret_errno(-1);
+    }
   }
   reg_t ret = sysret_errno(write(fds.lookup(fd), buf.data(), len));
   return ret;
@@ -262,8 +261,14 @@ reg_t syscall_t::sys_write(reg_t fd, reg_t pbuf, reg_t len, reg_t a3, reg_t a4, 
 reg_t syscall_t::sys_pwrite(reg_t fd, reg_t pbuf, reg_t len, reg_t off, reg_t a4, reg_t a5, reg_t a6)
 {
   std::vector<char> buf(len);
-  std::vector<char> tag_buf(len);
+  std::vector<uint8_t> tag_buf(len);
   memif->read(pbuf, len, buf.data(), tag_buf.data());
+  if (htif->get_tag_memory()) {
+    if (!htif->get_tag_memory()->pg_out(fd, pbuf, tag_buf)) {
+      std::cerr << "Failed PG at 0x" << std::hex << pbuf << std::dec << " Length: " << len << std::endl;
+      return sysret_errno(-1);
+    }
+  }
   reg_t ret = sysret_errno(pwrite(fds.lookup(fd), buf.data(), len, off));
   return ret;
 }
