@@ -9,7 +9,7 @@ htif_hexwriter_t::htif_hexwriter_t(size_t b, size_t w, size_t d)
 {
 }
 
-void htif_hexwriter_t::read_chunk(addr_t taddr, size_t len, void* vdst)
+void htif_hexwriter_t::read_chunk(addr_t taddr, size_t len, void* vdst, void* tag_vdst)
 {
   taddr -= base;
 
@@ -32,7 +32,7 @@ void htif_hexwriter_t::read_chunk(addr_t taddr, size_t len, void* vdst)
   }
 }
 
-void htif_hexwriter_t::write_chunk(addr_t taddr, size_t len, const void* vsrc)
+void htif_hexwriter_t::write_chunk(addr_t taddr, size_t len, const void* vsrc, const void* tag_vdst)
 {
   taddr -= base;
 

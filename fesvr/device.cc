@@ -51,7 +51,8 @@ void device_t::handle_identify(command_t cmd)
   else
     strcpy(id, command_names[what].c_str());
 
-  cmd.memif().write(addr, IDENTITY_SIZE, id);
+  char dummy_id[IDENTITY_SIZE] = {0};
+  cmd.memif().write(addr, IDENTITY_SIZE, id, dummy_id);
   cmd.respond(1);
 }
 
@@ -106,23 +107,25 @@ disk_t::~disk_t()
 void disk_t::handle_read(command_t cmd)
 {
   request_t req;
-  cmd.memif().read(cmd.payload(), sizeof(req), &req);
+  request_t dummy_req;
+  cmd.memif().read(cmd.payload(), sizeof(req), &req, &dummy_req);
 
-  std::vector<uint8_t> buf(req.size);
+  std::vector<uint8_t> buf(req.size), tag_buf(req.size);
   if ((size_t)::pread(fd, buf.data(), buf.size(), req.offset) != req.size)
     throw std::runtime_error("could not read " + id + " @ " + std::to_string(req.offset));
 
-  cmd.memif().write(req.addr, buf.size(), buf.data());
+  cmd.memif().write(req.addr, buf.size(), buf.data(), tag_buf.data());
   cmd.respond(req.tag);
 }
 
 void disk_t::handle_write(command_t cmd)
 {
   request_t req;
-  cmd.memif().read(cmd.payload(), sizeof(req), &req);
+  request_t dummy_req;
+  cmd.memif().read(cmd.payload(), sizeof(req), &req, &dummy_req);
 
-  std::vector<uint8_t> buf(req.size);
-  cmd.memif().read(req.addr, buf.size(), buf.data());
+  std::vector<uint8_t> buf(req.size), tag_buf(req.size, 0);
+  cmd.memif().read(req.addr, buf.size(), buf.data(), tag_buf.data());
 
   if ((size_t)::pwrite(fd, buf.data(), buf.size(), req.offset) != req.size)
     throw std::runtime_error("could not write " + id + " @ " + std::to_string(req.offset));

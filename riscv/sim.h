@@ -158,8 +158,8 @@ private:
   context_t target;
   void reset();
   void idle();
-  void read_chunk(addr_t taddr, size_t len, void* dst);
-  void write_chunk(addr_t taddr, size_t len, const void* src);
+  void read_chunk(addr_t taddr, size_t len, void* dst, void* tag_dst);
+  void write_chunk(addr_t taddr, size_t len, const void* src, const void* tag_src);
   size_t chunk_align() { return 8; }
   size_t chunk_max_size() { return 8; }
   void set_target_endianness(memif_endianness_t endianness);

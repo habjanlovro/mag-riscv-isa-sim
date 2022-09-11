@@ -19,8 +19,8 @@ protected:
   size_t depth;
   std::map<addr_t,std::vector<char> > mem;
 
-  void read_chunk(addr_t taddr, size_t len, void* dst);
-  void write_chunk(addr_t taddr, size_t len, const void* src);
+  void read_chunk(addr_t taddr, size_t len, void* dst, void* tag_dst);
+  void write_chunk(addr_t taddr, size_t len, const void* src, const void* tag_src);
   void clear_chunk(addr_t taddr, size_t len) {}
 
   size_t chunk_max_size() { return width; }

@@ -38,6 +38,7 @@ std::map<std::string, uint64_t> load_elf(const char* fn, memif_t* memif, reg_t* 
   assert(IS_ELF_VCURRENT(*eh64));
 
   std::vector<uint8_t> zeros;
+  std::vector<uint8_t> tag_zeros;
   std::map<std::string, uint64_t> symbols;
 
 #define LOAD_ELF(ehdr_t, phdr_t, shdr_t, sym_t, bswap)                         \
@@ -49,14 +50,17 @@ std::map<std::string, uint64_t> load_elf(const char* fn, memif_t* memif, reg_t* 
     for (unsigned i = 0; i < bswap(eh->e_phnum); i++) {                        \
       if (bswap(ph[i].p_type) == PT_LOAD && bswap(ph[i].p_memsz)) {            \
         if (bswap(ph[i].p_filesz)) {                                           \
+          tag_zeros.resize(bswap(ph[i].p_filesz), 0);                          \
           assert(size >= bswap(ph[i].p_offset) + bswap(ph[i].p_filesz));       \
           memif->write(bswap(ph[i].p_paddr), bswap(ph[i].p_filesz),            \
-                       (uint8_t*)buf + bswap(ph[i].p_offset));                 \
+                       (uint8_t*)buf + bswap(ph[i].p_offset),                  \
+                       tag_zeros.data());                                      \
         }                                                                      \
         if (size_t pad = bswap(ph[i].p_memsz) - bswap(ph[i].p_filesz)) {       \
           zeros.resize(pad);                                                   \
+          tag_zeros.resize(pad, 0);                                            \
           memif->write(bswap(ph[i].p_paddr) + bswap(ph[i].p_filesz), pad,      \
-                       zeros.data());                                          \
+                       zeros.data(), tag_zeros.data());                        \
         }                                                                      \
       }                                                                        \
     }                                                                          \

@@ -146,7 +146,8 @@ void rfb_t::tick()
   if (fb_bytes() == 0 || memif == NULL)
     return;
 
-  memif->read(addr + read_pos, FB_ALIGN, const_cast<char*>(fb2 + read_pos));
+  char dummy[FB_ALIGN] = {0};
+  memif->read(addr + read_pos, FB_ALIGN, const_cast<char*>(fb2 + read_pos), dummy);
   read_pos = (read_pos + FB_ALIGN) % fb_bytes();
   if (read_pos == 0)
   {

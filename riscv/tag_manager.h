@@ -74,10 +74,10 @@ class tag_memory_t : public simif_t {
 
   		const char* get_symbol(uint64_t addr);
 
-		void copy_tag_mem(reg_t pbuf, reg_t len, reg_t off);
+		std::vector<uint8_t> copy_tag_mem(reg_t pbuf, reg_t len, reg_t off);
 
-		void pg_in(reg_t fd, reg_t pbuf, reg_t len);
-		void pg_out(reg_t fd, reg_t pbuf, reg_t len);
+		std::vector<uint8_t> pg_in(reg_t fd, reg_t pbuf, reg_t len);
+		void pg_out(reg_t fd, reg_t addr, const std::vector<uint8_t>& data);
 
 		void register_fd(const std::string& name, int fd);
 		void unregister_fd(int fd);

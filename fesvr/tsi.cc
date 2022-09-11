@@ -31,7 +31,7 @@ void tsi_t::reset()
 {
   uint32_t one = 1;
 
-  write_chunk(MSIP_BASE, sizeof(uint32_t), &one);
+  write_chunk(MSIP_BASE, sizeof(uint32_t), &one, NULL);
 }
 
 void tsi_t::push_addr(addr_t addr)
@@ -50,7 +50,7 @@ void tsi_t::push_len(addr_t len)
   }
 }
 
-void tsi_t::read_chunk(addr_t taddr, size_t nbytes, void* dst)
+void tsi_t::read_chunk(addr_t taddr, size_t nbytes, void* dst, void* tag_dst)
 {
   uint32_t *result = static_cast<uint32_t*>(dst);
   size_t len = nbytes / sizeof(uint32_t);
@@ -67,7 +67,7 @@ void tsi_t::read_chunk(addr_t taddr, size_t nbytes, void* dst)
   }
 }
 
-void tsi_t::write_chunk(addr_t taddr, size_t nbytes, const void* src)
+void tsi_t::write_chunk(addr_t taddr, size_t nbytes, const void* src, const void* tag_src)
 {
   const uint32_t *src_data = static_cast<const uint32_t*>(src);
   size_t len = nbytes / sizeof(uint32_t);

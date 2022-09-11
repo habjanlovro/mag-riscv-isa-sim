@@ -219,42 +219,42 @@ static reg_t sysret_errno(sreg_t ret)
 
 reg_t syscall_t::sys_read(reg_t fd, reg_t pbuf, reg_t len, reg_t a3, reg_t a4, reg_t a5, reg_t a6)
 {
-  if (htif->get_tag_memory()) {
-    htif->get_tag_memory()->pg_in(fd, pbuf, len);
-  }
   std::vector<char> buf(len);
+  std::vector<uint8_t> tag_buf = htif->get_tag_memory()->pg_in(fd, pbuf, len);
   ssize_t ret = read(fds.lookup(fd), buf.data(), len);
   reg_t ret_errno = sysret_errno(ret);
   if (ret > 0)
-    memif->write(pbuf, ret, buf.data());
+    memif->write(pbuf, ret, buf.data(), tag_buf.data());
   return ret_errno;
 }
 
 reg_t syscall_t::sys_pread(reg_t fd, reg_t pbuf, reg_t len, reg_t off, reg_t a4, reg_t a5, reg_t a6)
 {
-  if (htif->get_tag_memory()) {
-      htif->get_tag_memory()->copy_tag_mem(pbuf, len, off);
-  }
   std::vector<char> buf(len);
+  std::vector<uint8_t> tag_buf;
+  if (htif->get_tag_memory()) {
+    tag_buf = htif->get_tag_memory()->copy_tag_mem(pbuf, len, off);
+  } else {
+    tag_buf.resize(len, 0);
+  }
   ssize_t ret = pread(fds.lookup(fd), buf.data(), len, off);
   reg_t ret_errno = sysret_errno(ret);
   if (ret > 0)
-    memif->write(pbuf, ret, buf.data());
+    memif->write(pbuf, ret, buf.data(), tag_buf.data());
   return ret_errno;
 }
 
 reg_t syscall_t::sys_write(reg_t fd, reg_t pbuf, reg_t len, reg_t a3, reg_t a4, reg_t a5, reg_t a6)
 {
-  if (htif->get_tag_memory()) {
-    try {
-      htif->get_tag_memory()->pg_out(fd, pbuf, len);
-    } catch (tag_pg_exception_t& e) {
-      std::cerr << e.what() << std::endl;
-      return sysret_errno(-1);
-    }
-  }
   std::vector<char> buf(len);
-  memif->read(pbuf, len, buf.data());
+  std::vector<uint8_t> tag_buf(len);
+  memif->read(pbuf, len, buf.data(), tag_buf.data());
+  try {
+    htif->get_tag_memory()->pg_out(fd, pbuf, tag_buf);
+  } catch (tag_pg_exception_t& e) {
+    std::cerr << e.what() << std::endl;
+    return sysret_errno(-1);
+  }
   reg_t ret = sysret_errno(write(fds.lookup(fd), buf.data(), len));
   return ret;
 }
@@ -262,7 +262,8 @@ reg_t syscall_t::sys_write(reg_t fd, reg_t pbuf, reg_t len, reg_t a3, reg_t a4, 
 reg_t syscall_t::sys_pwrite(reg_t fd, reg_t pbuf, reg_t len, reg_t off, reg_t a4, reg_t a5, reg_t a6)
 {
   std::vector<char> buf(len);
-  memif->read(pbuf, len, buf.data());
+  std::vector<char> tag_buf(len);
+  memif->read(pbuf, len, buf.data(), tag_buf.data());
   reg_t ret = sysret_errno(pwrite(fds.lookup(fd), buf.data(), len, off));
   return ret;
 }
@@ -290,7 +291,8 @@ reg_t syscall_t::sys_fstat(reg_t fd, reg_t pbuf, reg_t a2, reg_t a3, reg_t a4, r
   if (ret != (reg_t)-1)
   {
     riscv_stat rbuf(buf, htif);
-    memif->write(pbuf, sizeof(rbuf), &rbuf);
+    std::vector<uint8_t> dummy(sizeof(riscv_stat), 0);
+    memif->write(pbuf, sizeof(rbuf), &rbuf, dummy.data());
   }
   return ret;
 }
@@ -307,15 +309,16 @@ reg_t syscall_t::sys_ftruncate(reg_t fd, reg_t len, reg_t a2, reg_t a3, reg_t a4
 
 reg_t syscall_t::sys_lstat(reg_t pname, reg_t len, reg_t pbuf, reg_t a3, reg_t a4, reg_t a5, reg_t a6)
 {
-  std::vector<char> name(len);
-  memif->read(pname, len, name.data());
+  std::vector<char> name(len), tag_name(len);
+  memif->read(pname, len, name.data(), tag_name.data());
 
   struct stat buf;
   reg_t ret = sysret_errno(lstat(do_chroot(name.data()).c_str(), &buf));
   if (ret != (reg_t)-1)
   {
     riscv_stat rbuf(buf, htif);
-    memif->write(pbuf, sizeof(rbuf), &rbuf);
+	std::vector<char> dummy_rbuf(sizeof(riscv_stat), 0);
+    memif->write(pbuf, sizeof(rbuf), &rbuf, dummy_rbuf.data());
   }
   return ret;
 }
@@ -325,15 +328,16 @@ reg_t syscall_t::sys_statx(reg_t fd, reg_t pname, reg_t len, reg_t flags, reg_t 
 #ifndef HAVE_STATX
   return -ENOSYS;
 #else
-  std::vector<char> name(len);
-  memif->read(pname, len, name.data());
+  std::vector<char> name(len), tag_name(len);
+  memif->read(pname, len, name.data(), tag_name.data());
 
   struct statx buf;
   reg_t ret = sysret_errno(statx(fds.lookup(fd), do_chroot(name.data()).c_str(), flags, mask, &buf));
   if (ret != (reg_t)-1)
   {
     riscv_statx rbuf(buf, htif);
-    memif->write(pbuf, sizeof(rbuf), &rbuf);
+	std::vector<char> dummy_rbuf(sizeof(riscv_statx), 0);
+    memif->write(pbuf, sizeof(rbuf), &rbuf, dummy_rbuf.data());
   }
   return ret;
 #endif
@@ -344,8 +348,8 @@ reg_t syscall_t::sys_statx(reg_t fd, reg_t pname, reg_t len, reg_t flags, reg_t 
 
 reg_t syscall_t::sys_openat(reg_t dirfd, reg_t pname, reg_t len, reg_t flags, reg_t mode, reg_t a5, reg_t a6)
 {
-  std::vector<char> name(len);
-  memif->read(pname, len, name.data());
+  std::vector<char> name(len), tag_name(len);
+  memif->read(pname, len, name.data(), tag_name.data());
   int fd = sysret_errno(AT_SYSCALL(openat, dirfd, name.data(), flags, mode));
   if (fd < 0)
     return sysret_errno(-1);
@@ -357,40 +361,42 @@ reg_t syscall_t::sys_openat(reg_t dirfd, reg_t pname, reg_t len, reg_t flags, re
 
 reg_t syscall_t::sys_fstatat(reg_t dirfd, reg_t pname, reg_t len, reg_t pbuf, reg_t flags, reg_t a5, reg_t a6)
 {
-  std::vector<char> name(len);
-  memif->read(pname, len, name.data());
+  std::vector<char> name(len), tag_name(len);
+  memif->read(pname, len, name.data(), tag_name.data());
 
   struct stat buf;
   reg_t ret = sysret_errno(AT_SYSCALL(fstatat, dirfd, name.data(), &buf, flags));
   if (ret != (reg_t)-1)
   {
     riscv_stat rbuf(buf, htif);
-    memif->write(pbuf, sizeof(rbuf), &rbuf);
+	std::vector<char> dummy_rbuf(sizeof(riscv_stat), 0);
+    memif->write(pbuf, sizeof(rbuf), &rbuf, dummy_rbuf.data());
   }
   return ret;
 }
 
 reg_t syscall_t::sys_faccessat(reg_t dirfd, reg_t pname, reg_t len, reg_t mode, reg_t a4, reg_t a5, reg_t a6)
 {
-  std::vector<char> name(len);
-  memif->read(pname, len, name.data());
+  std::cerr << "sys_facessat" << std::endl;
+  std::vector<char> name(len), tag_name(len);
+  memif->read(pname, len, name.data(), tag_name.data());
   return sysret_errno(AT_SYSCALL(faccessat, dirfd, name.data(), mode, 0));
 }
 
 reg_t syscall_t::sys_renameat(reg_t odirfd, reg_t popath, reg_t olen, reg_t ndirfd, reg_t pnpath, reg_t nlen, reg_t a6)
 {
-  std::vector<char> opath(olen), npath(nlen);
-  memif->read(popath, olen, opath.data());
-  memif->read(pnpath, nlen, npath.data());
+  std::vector<char> opath(olen), npath(nlen), tag_opath(olen), tag_npath(nlen);
+  memif->read(popath, olen, opath.data(), tag_opath.data());
+  memif->read(pnpath, nlen, npath.data(), tag_npath.data());
   return sysret_errno(renameat(fds.lookup(odirfd), int(odirfd) == RISCV_AT_FDCWD ? do_chroot(opath.data()).c_str() : opath.data(),
                              fds.lookup(ndirfd), int(ndirfd) == RISCV_AT_FDCWD ? do_chroot(npath.data()).c_str() : npath.data()));
 }
 
 reg_t syscall_t::sys_linkat(reg_t odirfd, reg_t poname, reg_t olen, reg_t ndirfd, reg_t pnname, reg_t nlen, reg_t flags)
 {
-  std::vector<char> oname(olen), nname(nlen);
-  memif->read(poname, olen, oname.data());
-  memif->read(pnname, nlen, nname.data());
+  std::vector<char> oname(olen), nname(nlen), tag_oname(olen), tag_nname(nlen);
+  memif->read(poname, olen, oname.data(), tag_oname.data());
+  memif->read(pnname, nlen, nname.data(), tag_nname.data());
   return sysret_errno(linkat(fds.lookup(odirfd), int(odirfd) == RISCV_AT_FDCWD ? do_chroot(oname.data()).c_str() : oname.data(),
                              fds.lookup(ndirfd), int(ndirfd) == RISCV_AT_FDCWD ? do_chroot(nname.data()).c_str() : nname.data(),
                              flags));
@@ -398,28 +404,29 @@ reg_t syscall_t::sys_linkat(reg_t odirfd, reg_t poname, reg_t olen, reg_t ndirfd
 
 reg_t syscall_t::sys_unlinkat(reg_t dirfd, reg_t pname, reg_t len, reg_t flags, reg_t a4, reg_t a5, reg_t a6)
 {
-  std::vector<char> name(len);
-  memif->read(pname, len, name.data());
+  std::vector<char> name(len), tag_name(len);
+  memif->read(pname, len, name.data(), tag_name.data());
   return sysret_errno(AT_SYSCALL(unlinkat, dirfd, name.data(), flags));
 }
 
 reg_t syscall_t::sys_mkdirat(reg_t dirfd, reg_t pname, reg_t len, reg_t mode, reg_t a4, reg_t a5, reg_t a6)
 {
-  std::vector<char> name(len);
-  memif->read(pname, len, name.data());
+  std::vector<char> name(len), tag_name(len);
+  memif->read(pname, len, name.data(), tag_name.data());
   return sysret_errno(AT_SYSCALL(mkdirat, dirfd, name.data(), mode));
 }
 
 reg_t syscall_t::sys_getcwd(reg_t pbuf, reg_t size, reg_t a2, reg_t a3, reg_t a4, reg_t a5, reg_t a6)
 {
-  std::vector<char> buf(size);
+  std::cerr << "sys_getcwd" << std::endl;
+  std::vector<char> buf(size), tag_buf(size, 0);
   char* ret = getcwd(buf.data(), size);
   if (ret == NULL)
     return sysret_errno(-1);
   std::string tmp = undo_chroot(buf.data());
   if (size <= tmp.size())
     return -ENOMEM;
-  memif->write(pbuf, tmp.size() + 1, tmp.data());
+  memif->write(pbuf, tmp.size() + 1, tmp.data(), tag_buf.data());
   return tmp.size() + 1;
 }
 
@@ -446,19 +453,22 @@ reg_t syscall_t::sys_getmainvars(reg_t pbuf, reg_t limit, reg_t a2, reg_t a3, re
   if (bytes.size() > limit)
     return -ENOMEM;
 
-  memif->write(pbuf, bytes.size(), bytes.data());
+  std::vector<uint8_t> tag_bytes(bytes.size(), 0);
+  memif->write(pbuf, bytes.size(), bytes.data(), tag_bytes.data());
   return 0;
 }
 
 reg_t syscall_t::sys_chdir(reg_t path, reg_t a1, reg_t a2, reg_t a3, reg_t a4, reg_t a5, reg_t a6)
 {
   size_t size = 0;
-  while (memif->read_uint8(path + size++))
+  while (memif->read_uint8(path + size++).first)
     ;
-  std::vector<char> buf(size);
+  std::vector<char> buf(size), tag_buf(size);
   for (size_t offset = 0;; offset++)
   {
-    buf[offset] = memif->read_uint8(path + offset);
+    auto p = memif->read_uint8(path + offset);
+    buf[offset] = p.first;
+    tag_buf[offset] = p.second;
     if (!buf[offset])
       break;
   }
@@ -467,8 +477,8 @@ reg_t syscall_t::sys_chdir(reg_t path, reg_t a1, reg_t a2, reg_t a3, reg_t a4, r
 
 void syscall_t::dispatch(reg_t mm)
 {
-  target_endian<reg_t> magicmem[8];
-  memif->read(mm, sizeof(magicmem), magicmem);
+  target_endian<reg_t> magicmem[8], tag_magicmem[8];
+  memif->read(mm, sizeof(magicmem), magicmem, tag_magicmem);
 
   reg_t n = htif->from_target(magicmem[0]);
   if (n >= table.size() || !table[n])
@@ -476,7 +486,8 @@ void syscall_t::dispatch(reg_t mm)
 
   magicmem[0] = htif->to_target((this->*table[n])(htif->from_target(magicmem[1]), htif->from_target(magicmem[2]), htif->from_target(magicmem[3]), htif->from_target(magicmem[4]), htif->from_target(magicmem[5]), htif->from_target(magicmem[6]), htif->from_target(magicmem[7])));
 
-  memif->write(mm, sizeof(magicmem), magicmem);
+  std::vector<uint8_t> dummy(sizeof(magicmem), 0);
+  memif->write(mm, sizeof(magicmem), magicmem, dummy.data());
 }
 
 reg_t fds_t::alloc(int fd)

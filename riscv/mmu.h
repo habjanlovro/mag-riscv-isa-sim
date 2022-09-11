@@ -67,11 +67,11 @@ public:
 #endif
   }
 
-  inline void misaligned_store(reg_t addr, reg_t data, size_t size, uint32_t xlate_flags, bool actually_store=true)
+  inline void misaligned_store(reg_t addr, std::pair<reg_t, reg_t> data, size_t size, uint32_t xlate_flags, bool actually_store=true)
   {
 #ifdef RISCV_ENABLE_MISALIGNED
     for (size_t i = 0; i < size; i++)
-      store_uint8(addr + (target_big_endian? size-1-i : i), data >> (i * 8), actually_store);
+      store_uint8(addr + (target_big_endian? size-1-i : i), std::make_pair(data.first >> (i * 8), data.second >> (i * 8)), actually_store);
 #else
     bool gva = ((proc) ? proc->state.v : false) || (RISCV_XLATE_VIRT & xlate_flags);
     throw trap_store_address_misaligned(gva, addr, 0, 0);
@@ -112,10 +112,11 @@ public:
         if (proc) READ_MEM(addr, size); \
         return data; \
       } \
-      std::pair<target_endian<type##_t>, target_endian<type##_t>> res; \
-      load_slow_path(addr, sizeof(type##_t), (uint8_t*) &(res.first), (uint8_t*) &(res.second), (xlate_flags)); \
+      target_endian<type##_t> res; \
+      target_endian<type##_t> res_tag; \
+      load_slow_path(addr, sizeof(type##_t), (uint8_t*) &res, (uint8_t*) &res_tag, (xlate_flags)); \
       if (proc) READ_MEM(addr, size); \
-      return std::make_pair(from_target(res.first), from_target(res.second)); \
+      return std::make_pair(from_target(res), from_target(res_tag)); \
     }
 
   // load value from memory at aligned address; zero extend to register width
@@ -156,7 +157,7 @@ public:
     void prefix##_##type(reg_t addr, std::pair<type##_t, type##_t> val, bool actually_store=true, bool require_alignment=false) { \
       if (unlikely(addr & (sizeof(type##_t)-1))) { \
         if (require_alignment) store_conditional_address_misaligned(addr); \
-        else return misaligned_store(addr, val.first, sizeof(type##_t), xlate_flags, actually_store); \
+        else return misaligned_store(addr, val, sizeof(type##_t), xlate_flags, actually_store); \
       } \
       reg_t vpn = addr >> PGSHIFT; \
       size_t size = sizeof(type##_t); \
@@ -164,6 +165,7 @@ public:
         if (actually_store) { \
           if (proc) WRITE_MEM(addr, val.first, size); \
           *(target_endian<type##_t>*)(tlb_data[vpn % TLB_ENTRIES].host_offset + addr) = to_target(val.first); \
+          *(target_endian<type##_t>*)(tlb_data[vpn % TLB_ENTRIES].host_tag_offset + addr) = to_target(val.second); \
         } \
       } \
       else if ((xlate_flags) == 0 && unlikely(tlb_store_tag[vpn % TLB_ENTRIES] == (vpn | TLB_CHECK_TRIGGERS))) { \
@@ -175,6 +177,7 @@ public:
           } \
           if (proc) WRITE_MEM(addr, val.first, size); \
           *(target_endian<type##_t>*)(tlb_data[vpn % TLB_ENTRIES].host_offset + addr) = to_target(val.first); \
+          *(target_endian<type##_t>*)(tlb_data[vpn % TLB_ENTRIES].host_tag_offset + addr) = to_target(val.second); \
         } \
       } \
       else { \

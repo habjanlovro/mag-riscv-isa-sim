@@ -407,19 +407,25 @@ void sim_t::idle()
   target.switch_to();
 }
 
-void sim_t::read_chunk(addr_t taddr, size_t len, void* dst)
+void sim_t::read_chunk(addr_t taddr, size_t len, void* dst, void* tag_dst)
 {
   assert(len == 8);
-  auto data = debug_mmu->to_target(debug_mmu->load_uint64(taddr).first);
+  auto p = debug_mmu->load_uint64(taddr);
+  auto data = debug_mmu->to_target(p.first);
+  auto data_tag = debug_mmu->to_target(p.second);
   memcpy(dst, &data, sizeof data);
+  memcpy(tag_dst, &data_tag, sizeof data_tag);
 }
 
-void sim_t::write_chunk(addr_t taddr, size_t len, const void* src)
+void sim_t::write_chunk(addr_t taddr, size_t len, const void* src, const void* src_tag)
 {
   assert(len == 8);
   target_endian<uint64_t> data;
+  target_endian<uint64_t> data_tag;
   memcpy(&data, src, sizeof data);
-  debug_mmu->store_uint64(taddr, std::make_pair(debug_mmu->from_target(data), 0));
+  memcpy(&data_tag, src_tag, sizeof data_tag);
+  debug_mmu->store_uint64(taddr,
+    std::make_pair(debug_mmu->from_target(data), debug_mmu->from_target(data_tag)));
 }
 
 void sim_t::set_target_endianness(memif_endianness_t endianness)

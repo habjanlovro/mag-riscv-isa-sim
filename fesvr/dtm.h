@@ -58,8 +58,8 @@ class dtm_t : public htif_t
   void producer_thread();
 
  protected:
-  virtual void read_chunk(addr_t taddr, size_t len, void* dst) override;
-  virtual void write_chunk(addr_t taddr, size_t len, const void* src) override;
+  virtual void read_chunk(addr_t taddr, size_t len, void* dst, void* tag_dst) override;
+  virtual void write_chunk(addr_t taddr, size_t len, const void* src, const void* tag_src) override;
   virtual void clear_chunk(addr_t taddr, size_t len) override;
   virtual size_t chunk_align() override;
   virtual size_t chunk_max_size() override;

@@ -120,10 +120,11 @@ std::map<std::string, uint64_t> htif_t::load_payload(const std::string& payload,
    public:
     preload_aware_memif_t(htif_t* htif) : memif_t(htif), htif(htif) {}
 
-    void write(addr_t taddr, size_t len, const void* src) override
+    void write(addr_t taddr, size_t len, const void* src, const void* tag_src) override
     {
+      std::vector<uint8_t> dummy(len, 0);
       if (!htif->is_address_preloaded(taddr, len))
-        memif_t::write(taddr, len, src);
+        memif_t::write(taddr, len, src, dummy.data());
     }
 
    private:
@@ -187,7 +188,8 @@ void htif_t::stop()
   if (!sig_file.empty() && sig_len) // print final torture test signature
   {
     std::vector<uint8_t> buf(sig_len);
-    mem.read(sig_addr, sig_len, buf.data());
+    std::vector<uint8_t> tag_buf(sig_len);
+    mem.read(sig_addr, sig_len, buf.data(), tag_buf.data());
 
     std::ofstream sigs(sig_file);
     assert(sigs && "can't open signature file!");
@@ -215,7 +217,7 @@ void htif_t::clear_chunk(addr_t taddr, size_t len)
   memset(zeros, 0, chunk_max_size());
 
   for (size_t pos = 0; pos < len; pos += chunk_max_size())
-    write_chunk(taddr + pos, std::min(len - pos, chunk_max_size()), zeros);
+    write_chunk(taddr + pos, std::min(len - pos, chunk_max_size()), zeros, zeros);
 }
 
 int htif_t::run()
@@ -237,8 +239,8 @@ int htif_t::run()
     uint64_t tohost;
 
     try {
-      if ((tohost = from_target(mem.read_uint64(tohost_addr))) != 0)
-        mem.write_uint64(tohost_addr, target_endian<uint64_t>::zero);
+      if ((tohost = from_target(mem.read_uint64(tohost_addr).first)) != 0)
+        mem.write_uint64(tohost_addr, std::make_pair(target_endian<uint64_t>::zero, target_endian<uint64_t>::zero));
     } catch (mem_trap_t& t) {
       bad_address("accessing tohost", t.get_tval());
     }
@@ -259,8 +261,8 @@ int htif_t::run()
     }
 
     try {
-      if (!fromhost_queue.empty() && !mem.read_uint64(fromhost_addr)) {
-        mem.write_uint64(fromhost_addr, to_target(fromhost_queue.front()));
+      if (!fromhost_queue.empty() && !mem.read_uint64(fromhost_addr).first) {
+        mem.write_uint64(fromhost_addr, std::make_pair(to_target(fromhost_queue.front()), target_endian<uint64_t>::zero));
         fromhost_queue.pop();
       }
     } catch (mem_trap_t& t) {
