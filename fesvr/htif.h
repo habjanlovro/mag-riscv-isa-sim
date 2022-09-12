@@ -64,7 +64,7 @@ class htif_t : public chunked_memif_t
 
   virtual void read_chunk(addr_t taddr, size_t len, void* dst, void* tag_dst) = 0;
   virtual void write_chunk(addr_t taddr, size_t len, const void* src, const void* tag_dst) = 0;
-  virtual void clear_chunk(addr_t taddr, size_t len);
+  virtual void clear_chunk(addr_t taddr, size_t len, const void* tags);
 
   virtual size_t chunk_align() = 0;
   virtual size_t chunk_max_size() = 0;

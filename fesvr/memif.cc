@@ -80,18 +80,10 @@ void memif_t::write(addr_t addr, size_t len, const void* bytes, const void* tag_
     len -= this_len;
   }
 
-  // now we're aligned
-  bool all_zero = len != 0;
-  for (size_t i = 0; i < len; i++)
-    all_zero &= ((const char*)bytes)[i] == 0;
-
-  if (all_zero) {
-    cmemif->clear_chunk(addr, len);
-  } else {
-    size_t max_chunk = cmemif->chunk_max_size();
-    for (size_t pos = 0; pos < len; pos += max_chunk)
-      cmemif->write_chunk(addr + pos, std::min(max_chunk, len - pos),
-        (char*)bytes + pos, (char*)tag_bytes + pos);
+  size_t max_chunk = cmemif->chunk_max_size();
+  for (size_t pos = 0; pos < len; pos += max_chunk) {
+    cmemif->write_chunk(addr + pos, std::min(max_chunk, len - pos),
+      (char*)bytes + pos, (char*)tag_bytes + pos);
   }
 }
 

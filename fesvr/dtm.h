@@ -60,7 +60,7 @@ class dtm_t : public htif_t
  protected:
   virtual void read_chunk(addr_t taddr, size_t len, void* dst, void* tag_dst) override;
   virtual void write_chunk(addr_t taddr, size_t len, const void* src, const void* tag_src) override;
-  virtual void clear_chunk(addr_t taddr, size_t len) override;
+  virtual void clear_chunk(addr_t taddr, size_t len, const void* tags) override;
   virtual size_t chunk_align() override;
   virtual size_t chunk_max_size() override;
   virtual void reset() override;

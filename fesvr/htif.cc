@@ -211,13 +211,13 @@ void htif_t::stop()
   stopped = true;
 }
 
-void htif_t::clear_chunk(addr_t taddr, size_t len)
+void htif_t::clear_chunk(addr_t taddr, size_t len, const void* tags)
 {
   char zeros[chunk_max_size()];
   memset(zeros, 0, chunk_max_size());
 
   for (size_t pos = 0; pos < len; pos += chunk_max_size())
-    write_chunk(taddr + pos, std::min(len - pos, chunk_max_size()), zeros, zeros);
+    write_chunk(taddr + pos, std::min(len - pos, chunk_max_size()), zeros, (char*)tags + pos);
 }
 
 int htif_t::run()
@@ -239,8 +239,9 @@ int htif_t::run()
     uint64_t tohost;
 
     try {
-      if ((tohost = from_target(mem.read_uint64(tohost_addr).first)) != 0)
-        mem.write_uint64(tohost_addr, std::make_pair(target_endian<uint64_t>::zero, target_endian<uint64_t>::zero));
+      auto load = mem.read_uint64(tohost_addr);
+      if ((tohost = from_target(load.first)) != 0)
+        mem.write_uint64(tohost_addr, std::make_pair(target_endian<uint64_t>::zero, load.second));
     } catch (mem_trap_t& t) {
       bad_address("accessing tohost", t.get_tval());
     }
@@ -261,8 +262,9 @@ int htif_t::run()
     }
 
     try {
-      if (!fromhost_queue.empty() && !mem.read_uint64(fromhost_addr).first) {
-        mem.write_uint64(fromhost_addr, std::make_pair(to_target(fromhost_queue.front()), target_endian<uint64_t>::zero));
+      auto load = mem.read_uint64(fromhost_addr);
+      if (!fromhost_queue.empty() && !load.first) {
+        mem.write_uint64(fromhost_addr, std::make_pair(to_target(fromhost_queue.front()), load.second));
         fromhost_queue.pop();
       }
     } catch (mem_trap_t& t) {

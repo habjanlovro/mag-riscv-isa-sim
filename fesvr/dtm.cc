@@ -363,7 +363,7 @@ void dtm_t::die(uint32_t cmderr)
 
 }
 
-void dtm_t::clear_chunk(uint64_t taddr, size_t len)
+void dtm_t::clear_chunk(uint64_t taddr, size_t len, const void* tags)
 {
   uint32_t prog[ram_words];
   uint32_t data[data_words];

@@ -218,6 +218,20 @@ void tag_memory_t::unregister_fd(int fd) {
 	active_perimiter_guards.erase(fd);
 }
 
+uint64_t tag_memory_t::check(uint64_t lhs, uint64_t rhs) {
+	uint64_t tag = 0;
+	tag |= (uint64_t) lca((uint8_t) (lhs >> 56), (uint8_t)(rhs >> 56)) << 56;
+	tag |= (uint64_t) lca((uint8_t) (lhs >> 48), (uint8_t) (rhs >> 48)) << 48;
+	tag |= (uint64_t) lca((uint8_t) (lhs >> 40), (uint8_t) (rhs >> 40)) << 40;
+	tag |= (uint64_t) lca((uint8_t) (lhs >> 32), (uint8_t) (rhs >> 32)) << 32;
+	tag |= (uint64_t) lca((uint8_t) (lhs >> 24), (uint8_t) (rhs >> 24)) << 24;
+	tag |= (uint64_t) lca((uint8_t) (lhs >> 16), (uint8_t) (rhs >> 16)) << 16;
+	tag |= (uint64_t) lca((uint8_t) (lhs >> 8), (uint8_t) (rhs >> 8)) << 8;
+	tag |= (uint64_t) lca((uint8_t) lhs, (uint8_t) rhs);
+
+	return tag;
+}
+
 
 tag_manager_t::tag_manager_t() : enabled(false) {}
 
@@ -449,6 +463,7 @@ T tag_manager_t::store(const uint8_t pc_addr_tag, const reg_t store_addr,
 			uint8_t tag = load_curr_tag >> (8 * i);
 			memory->lca(tag_curr, tag);
 		}
+		// TODO do we throw or raise the tag status (similiar to jump)?
 		if (!memory->is_descendant(tag_curr, new_tag)) {
 			throw std::runtime_error("Error store()! lca(PC, RS1, RS2) invalid tag for MEM location!");
 		}
@@ -458,7 +473,7 @@ T tag_manager_t::store(const uint8_t pc_addr_tag, const reg_t store_addr,
 		}
 		T result = 0;
 		for (size_t i = 0; i < sizeof result; i++) {
-			result |= new_tag << (8 * i);
+			result |= (uint64_t)new_tag << (8 * i);
 		}
 		return result;
 	}

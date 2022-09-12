@@ -71,7 +71,7 @@ public:
   {
 #ifdef RISCV_ENABLE_MISALIGNED
     for (size_t i = 0; i < size; i++)
-      store_uint8(addr + (target_big_endian? size-1-i : i), std::make_pair(data.first >> (i * 8), data.second >> (i * 8)), actually_store);
+      store_uint8(addr + (target_big_endian? size-1-i : i), std::make_pair((uint8_t) (data.first >> (i * 8)), (uint8_t) (data.second >> (i * 8))), actually_store);
 #else
     bool gva = ((proc) ? proc->state.v : false) || (RISCV_XLATE_VIRT & xlate_flags);
     throw trap_store_address_misaligned(gva, addr, 0, 0);
@@ -210,7 +210,7 @@ public:
       convert_load_traps_to_store_traps({ \
         store_##type(addr, std::make_pair(0, 0), false, true); \
         auto lhs = load_##type(addr, true); \
-        store_##type(addr, std::make_pair(f(lhs.first), 0)); \
+        store_##type(addr, std::make_pair(f(lhs.first), lhs.second)); \
         return lhs.first; \
       }) \
     }
