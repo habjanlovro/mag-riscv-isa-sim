@@ -197,7 +197,7 @@ bool tag_memory_t::pg_out(reg_t fd, reg_t addr, const std::vector<uint8_t>& data
 		auto pg = active_perimiter_guards.at(fd);
 		for (auto& tag : data) {
 			auto check = lca(pg.tag, tag);
-			if (!is_descendant(pg.tag, tag)) {
+			if (!is_descendant(tag, pg.tag)) {
 				return false;
 			}
 		}
