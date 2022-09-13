@@ -219,6 +219,9 @@ void tag_memory_t::unregister_fd(int fd) {
 }
 
 uint64_t tag_memory_t::check(uint64_t lhs, uint64_t rhs) {
+	if (!enabled) {
+		return 0;
+	}
 	uint64_t tag = 0;
 	tag |= (uint64_t) lca((uint8_t) (lhs >> 56), (uint8_t)(rhs >> 56)) << 56;
 	tag |= (uint64_t) lca((uint8_t) (lhs >> 48), (uint8_t) (rhs >> 48)) << 48;
