@@ -18,6 +18,42 @@ tag_memory_t::tag_memory_t() : enabled(false), tag_fd(-1) {
 	bus = new bus_t;
 }
 
+static std::string parse_name(std::stringstream& ss) {
+	std::string r;
+	char c;
+	while (ss.get(c) && c != ' ') {
+		r += c;
+	}
+	if (r.size() == 0) {
+		throw std::runtime_error("Missing name for perimiter guard!");
+	}
+	return r;
+}
+
+static std::string parse_file(std::stringstream& ss) {
+	std::string r;
+	char c;
+	do {
+		ss.get(c);
+	} while(!ss.eof() && c != '"');
+	while (ss.get(c) && c != '"') {
+		r += c;
+	}
+	if (r.size() == 0) {
+		throw std::runtime_error("Missing file for perimiter guard!");
+	}
+	return r;
+}
+
+static uint8_t parse_tag(std::stringstream& ss) {
+	std::string r;
+	char c;
+	while (ss.get(c)) {
+		r += c;
+	}
+	return (uint8_t) std::stoul(r);
+}
+
 tag_memory_t::tag_memory_t(
 		const std::string& policy_file,
 		const std::string& tag_file) : enabled(true), tag_fd(-1) {
@@ -59,27 +95,15 @@ tag_memory_t::tag_memory_t(
 	for (int i = 0; i < num_pgs; i++) {
 		line_num++;
 
-		std::string name, file, fd_s, tag_s;
-		size_t fd;
-		uint8_t tag;
-
 		std::getline(policy_file_stream, line);
 		std::stringstream line_stream(line);
-		line_stream >> name >> fd_s >> tag_s;
 
-		try {
-			fd = std::stoul(fd_s);
-		} catch (...) {
-			fd = -1;
-			file = fd_s;
-		}
-		tag = std::stoul(tag_s);
+		std::string name = parse_name(line_stream);
+		std::string file = parse_file(line_stream);
+		uint8_t tag = parse_tag(line_stream);
 
-		tag_pg_t pg(name, file, fd, tag);
+		tag_pg_t pg(name, file, tag);
 		perimiter_guards.push_back(pg);
-		if (fd >= 0 && fd <= 2) {
-			active_perimiter_guards[fd] = pg;
-		}
 	}
 	while (std::getline(policy_file_stream, line)) {
 		line_num++;
@@ -177,7 +201,7 @@ std::vector<uint8_t> tag_memory_t::copy_tag_mem(reg_t pbuf, reg_t len, reg_t off
 	return buf;
 }
 
-std::vector<uint8_t> tag_memory_t::pg_in(reg_t fd, reg_t pbuf, reg_t len) {
+std::vector<uint8_t> tag_memory_t::pg_in(int fd, reg_t pbuf, reg_t len) {
 	if (!enabled) {
 		return std::vector<uint8_t>(len, 0);
 	}
@@ -189,7 +213,7 @@ std::vector<uint8_t> tag_memory_t::pg_in(reg_t fd, reg_t pbuf, reg_t len) {
 	}
 }
 
-bool tag_memory_t::pg_out(reg_t fd, reg_t addr, const std::vector<uint8_t>& data) {
+bool tag_memory_t::pg_out(int fd, reg_t addr, const std::vector<uint8_t>& data) {
 	if (!enabled) {
 		return true;
 	}

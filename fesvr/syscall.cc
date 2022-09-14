@@ -172,6 +172,11 @@ syscall_t::syscall_t(htif_t* htif)
   fds.alloc(stdin_fd); // stdin -> stdin
   fds.alloc(stdout_fd0); // stdout -> stdout
   fds.alloc(stdout_fd1); // stderr -> stdout
+  if (htif->get_tag_memory()) {
+    htif->get_tag_memory()->register_fd("stdin", fds.lookup(0));
+    htif->get_tag_memory()->register_fd("stdout", fds.lookup(1));
+    htif->get_tag_memory()->register_fd("stderr", fds.lookup(2));
+  }
 }
 
 std::string syscall_t::do_chroot(const char* fn)
@@ -248,13 +253,14 @@ reg_t syscall_t::sys_write(reg_t fd, reg_t pbuf, reg_t len, reg_t a3, reg_t a4, 
   std::vector<char> buf(len);
   std::vector<uint8_t> tag_buf(len);
   memif->read(pbuf, len, buf.data(), tag_buf.data());
+  int actual_fd = fds.lookup(fd);
   if (htif->get_tag_memory()) {
-    if (!htif->get_tag_memory()->pg_out(fd, pbuf, tag_buf)) {
+    if (!htif->get_tag_memory()->pg_out(actual_fd, pbuf, tag_buf)) {
       std::cerr << "Failed PG at 0x" << std::hex << pbuf << std::dec << " Length: " << len << std::endl;
       return sysret_errno(-1);
     }
   }
-  reg_t ret = sysret_errno(write(fds.lookup(fd), buf.data(), len));
+  reg_t ret = sysret_errno(write(actual_fd, buf.data(), len));
   return ret;
 }
 
@@ -263,22 +269,24 @@ reg_t syscall_t::sys_pwrite(reg_t fd, reg_t pbuf, reg_t len, reg_t off, reg_t a4
   std::vector<char> buf(len);
   std::vector<uint8_t> tag_buf(len);
   memif->read(pbuf, len, buf.data(), tag_buf.data());
+  int actual_fd = fds.lookup(fd);
   if (htif->get_tag_memory()) {
-    if (!htif->get_tag_memory()->pg_out(fd, pbuf, tag_buf)) {
+    if (!htif->get_tag_memory()->pg_out(actual_fd, pbuf, tag_buf)) {
       std::cerr << "Failed PG at 0x" << std::hex << pbuf << std::dec << " Length: " << len << std::endl;
       return sysret_errno(-1);
     }
   }
-  reg_t ret = sysret_errno(pwrite(fds.lookup(fd), buf.data(), len, off));
+  reg_t ret = sysret_errno(pwrite(actual_fd, buf.data(), len, off));
   return ret;
 }
 
 reg_t syscall_t::sys_close(reg_t fd, reg_t a1, reg_t a2, reg_t a3, reg_t a4, reg_t a5, reg_t a6)
 {
-  if (close(fds.lookup(fd)) < 0)
+  int actual_fd = fds.lookup(fd);
+  if (close(actual_fd) < 0)
     return sysret_errno(-1);
   if (htif->get_tag_memory()) {
-    htif->get_tag_memory()->unregister_fd(fd);
+    htif->get_tag_memory()->unregister_fd(actual_fd);
   }
   fds.dealloc(fd);
   return 0;
@@ -358,10 +366,11 @@ reg_t syscall_t::sys_openat(reg_t dirfd, reg_t pname, reg_t len, reg_t flags, re
   int fd = sysret_errno(AT_SYSCALL(openat, dirfd, name.data(), flags, mode));
   if (fd < 0)
     return sysret_errno(-1);
+  reg_t actual_fd = fds.alloc(fd);
   if (htif->get_tag_memory()) {
-    htif->get_tag_memory()->register_fd(std::string(name.data()), fd);
+    htif->get_tag_memory()->register_fd(std::string(name.data()), actual_fd);
   }
-  return fds.alloc(fd);
+  return actual_fd;
 }
 
 reg_t syscall_t::sys_fstatat(reg_t dirfd, reg_t pname, reg_t len, reg_t pbuf, reg_t flags, reg_t a5, reg_t a6)
