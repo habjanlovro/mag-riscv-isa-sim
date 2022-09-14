@@ -115,6 +115,10 @@ class tag_manager_t {
 		void jump(const uint8_t pc_addr_tag, const reg_t jmp_addr,
 			const reg_t rd, const uint8_t rs);
 
+		template<typename T>
+		T amo(const uint8_t pc_addr_tag, const reg_t addr, const T load_tag,
+			const reg_t rd, const uint8_t rs1, const uint8_t rs2);
+
 
 		void print();
 

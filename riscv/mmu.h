@@ -205,12 +205,12 @@ public:
 
   // template for functions that perform an atomic memory operation
   #define amo_func(type) \
-    template<typename op> \
-    type##_t amo_##type(reg_t addr, op f) { \
+    template<typename op, typename tag_op> \
+    type##_t amo_##type(reg_t addr, op f, tag_op f_tags) { \
       convert_load_traps_to_store_traps({ \
         store_##type(addr, std::make_pair(0, 0), false, true); \
         auto lhs = load_##type(addr, true); \
-        store_##type(addr, std::make_pair(f(lhs.first), lhs.second)); \
+        store_##type(addr, std::make_pair(f(lhs.first), f_tags(lhs.second))); \
         return lhs.first; \
       }) \
     }

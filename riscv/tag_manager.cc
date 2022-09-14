@@ -513,6 +513,20 @@ template uint32_t tag_manager_t::store<uint32_t>(const uint8_t pc_addr_tag, cons
 template uint64_t tag_manager_t::store<uint64_t>(const uint8_t pc_addr_tag, const reg_t store_addr, const uint8_t rs1, const uint8_t rs2);
 template uint128_t tag_manager_t::store<uint128_t>(const uint8_t pc_addr_tag, const reg_t store_addr, const uint8_t rs1, const uint8_t rs2);
 
+
+template<typename T>
+T tag_manager_t::amo(const uint8_t pc_addr_tag, const reg_t addr, const T load_tag,
+		const reg_t rd, const uint8_t rs1, const uint8_t rs2) {
+	load<T>(pc_addr_tag, load_tag, rd, rs1);
+	T result = store<T>(pc_addr_tag, addr, rs1, rs2);
+	XPR_tags.write(rd, (uint8_t) result);
+	return result;
+}
+
+template uint32_t tag_manager_t::amo<uint32_t>(const uint8_t pc_addr_tag, const reg_t addr, const uint32_t load_tag, const reg_t rd, const uint8_t rs1, const uint8_t rs2);
+template uint64_t tag_manager_t::amo<uint64_t>(const uint8_t pc_addr_tag, const reg_t addr, const uint64_t load_tag, const reg_t rd, const uint8_t rs1, const uint8_t rs2);
+
+
 void tag_manager_t::print() {
 	for (size_t i = 0; i < NXPR; i++) {
 		std::cout << "Reg " << i << ": " << (int) XPR_tags[i] << " "
