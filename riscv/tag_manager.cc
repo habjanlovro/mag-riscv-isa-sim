@@ -491,7 +491,7 @@ T tag_manager_t::store(const uint8_t pc_addr_tag, const reg_t store_addr,
 		uint8_t tag_curr = 0;
 		for (size_t i = 0; i < sizeof load_curr_tag; i++) {
 			uint8_t tag = load_curr_tag >> (8 * i);
-			memory->lca(tag_curr, tag);
+			tag_curr = memory->lca(tag_curr, tag);
 		}
 		// TODO do we throw or raise the tag status (similiar to jump)?
 		if (!memory->is_descendant(tag_curr, new_tag)) {
@@ -499,7 +499,10 @@ T tag_manager_t::store(const uint8_t pc_addr_tag, const reg_t store_addr,
 		}
 #endif
 		if (new_tag == TAG_INVALID) {
-			throw std::runtime_error("Error store()! lca(PC, RS1, RS2) invalid tag!");
+			std::ostringstream oss;
+			oss << "Error store()! lca(PC, RS1, RS2) invalid tag! Address: 0x"
+				<< std::hex << store_addr << std::dec << std::endl;
+			throw std::runtime_error(oss.str());
 		}
 		T result = 0;
 		for (size_t i = 0; i < sizeof result; i++) {
