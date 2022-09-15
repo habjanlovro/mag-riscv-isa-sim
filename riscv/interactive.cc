@@ -258,13 +258,13 @@ void sim_t::interactive_quit(const std::string& cmd, const std::vector<std::stri
   exit(0);
 }
 
-reg_t sim_t::get_pc(const std::vector<std::string>& args)
+std::pair<reg_t, reg_t> sim_t::get_pc(const std::vector<std::string>& args)
 {
   if (args.size() != 1)
     throw trap_interactive();
 
   processor_t *p = get_core(args[0]);
-  return p->get_state()->pc;
+  return std::make_pair(p->get_state()->pc, p->get_tag_manager()->pc_tag);
 }
 
 void sim_t::interactive_pc(const std::string& cmd, const std::vector<std::string>& args)
@@ -275,12 +275,15 @@ void sim_t::interactive_pc(const std::string& cmd, const std::vector<std::string
   processor_t *p = get_core(args[0]);
   int max_xlen = p->get_isa().get_max_xlen();
 
+  auto val = get_pc(args);
   std::ostream out(sout_.rdbuf());
   out << std::hex << std::setfill('0') << "0x" << std::setw(max_xlen/4)
-      << zext(get_pc(args), max_xlen) << std::endl;
+      << zext(val.first, max_xlen)
+      << " 0x" << std::setfill('0') << "0x" << std::setw(max_xlen/4)
+      << zext(val.second, max_xlen) << std::endl;
 }
 
-reg_t sim_t::get_reg(const std::vector<std::string>& args)
+std::pair<reg_t, reg_t> sim_t::get_reg(const std::vector<std::string>& args)
 {
   if (args.size() != 2)
     throw trap_interactive();
@@ -292,7 +295,7 @@ reg_t sim_t::get_reg(const std::vector<std::string>& args)
     char *ptr;
     r = strtoul(args[1].c_str(), &ptr, 10);
     if (*ptr) {
-      #define DECLARE_CSR(name, number) if (args[1] == #name) return p->get_csr(number);
+      #define DECLARE_CSR(name, number) if (args[1] == #name) return std::make_pair(p->get_csr(number), 0);
       #include "encoding.h"              // generates if's for all csrs
       r = NXPR;                          // else case (csr name not found)
       #undef DECLARE_CSR
@@ -302,10 +305,10 @@ reg_t sim_t::get_reg(const std::vector<std::string>& args)
   if (r >= NXPR)
     throw trap_interactive();
 
-  return p->get_state()->XPR[r];
+  return std::make_pair(p->get_state()->XPR[r], p->get_tag_manager()->XPR_tags[r]);
 }
 
-freg_t sim_t::get_freg(const std::vector<std::string>& args)
+std::pair<freg_t, reg_t> sim_t::get_freg(const std::vector<std::string>& args)
 {
   if(args.size() != 2)
     throw trap_interactive();
@@ -317,7 +320,7 @@ freg_t sim_t::get_freg(const std::vector<std::string>& args)
   if (r >= NFPR)
     throw trap_interactive();
 
-  return p->get_state()->FPR[r];
+  return std::make_pair(p->get_state()->FPR[r], p->get_tag_manager()->FPR_tags[r]);
 }
 
 void sim_t::interactive_vreg(const std::string& cmd, const std::vector<std::string>& args)
@@ -390,13 +393,17 @@ void sim_t::interactive_reg(const std::string& cmd, const std::vector<std::strin
     for (int r = 0; r < NXPR; ++r) {
       out << std::setfill(' ') << std::setw(4) << xpr_name[r]
            << ": 0x" << std::setfill('0') << std::setw(max_xlen/4)
-           << zext(p->get_state()->XPR[r], max_xlen);
+           << zext(p->get_state()->XPR[r], max_xlen)
+           << " 0x"  << std::setfill('0') << std::setw(max_xlen/4)
+           << zext(p->get_tag_manager()->XPR_tags[r], max_xlen);
       if ((r + 1) % 4 == 0)
         out << std::endl;
     }
   } else {
+      auto val = get_reg(args);
       out << "0x" << std::setfill('0') << std::setw(max_xlen/4)
-           << zext(get_reg(args), max_xlen) << std::endl;
+           << zext(val.first, max_xlen) << " 0x"  << std::setfill('0')
+           << std::setw(max_xlen/4) << zext(val.second, max_xlen) << std::endl;
   }
 }
 
@@ -409,40 +416,49 @@ union fpr
 
 void sim_t::interactive_freg(const std::string& cmd, const std::vector<std::string>& args)
 {
-  freg_t r = get_freg(args);
+  auto r = get_freg(args);
 
   std::ostream out(sout_.rdbuf());
-  out << std::hex << "0x" << std::setfill ('0') << std::setw(16) << r.v[1] << std::setw(16) << r.v[0] << std::endl;
+  out << std::hex << "0x" << std::setfill ('0') << std::setw(16)
+    << r.first.v[1] << std::setw(16)
+    << r.first.v[0] << " 0x" << std::setfill ('0') << std::setw(16)
+    << r.second << std::endl;
 }
 
 void sim_t::interactive_fregh(const std::string& cmd, const std::vector<std::string>& args)
 {
   fpr f;
-  f.r = freg(f16_to_f32(f16(get_freg(args))));
+  auto r = get_freg(args);
+  f.r = freg(f16_to_f32(f16(r.first)));
 
   std::ostream out(sout_.rdbuf());
-  out << (isBoxedF32(f.r) ? (double)f.s : NAN) << std::endl;
+  out << (isBoxedF32(f.r) ? (double)f.s : NAN) << " 0x" << std::hex
+    << std::setfill ('0') << std::setw(16) << r.second << std::endl;
 }
 
 void sim_t::interactive_fregs(const std::string& cmd, const std::vector<std::string>& args)
 {
   fpr f;
-  f.r = get_freg(args);
+  auto r = get_freg(args);
+  f.r = r.first;
 
   std::ostream out(sout_.rdbuf());
-  out << (isBoxedF32(f.r) ? (double)f.s : NAN) << std::endl;
+  out << (isBoxedF32(f.r) ? (double)f.s : NAN) << " 0x" << std::hex
+    << std::setfill ('0') << std::setw(16) << r.second << std::endl;
 }
 
 void sim_t::interactive_fregd(const std::string& cmd, const std::vector<std::string>& args)
 {
   fpr f;
-  f.r = get_freg(args);
+  auto r = get_freg(args);
+  f.r = r.first;
 
   std::ostream out(sout_.rdbuf());
-  out << (isBoxedF64(f.r) ? f.d : NAN) << std::endl;
+  out << (isBoxedF64(f.r) ? f.d : NAN) << " 0x" << std::hex
+    << std::setfill ('0') << std::setw(16) << r.second << std::endl;
 }
 
-reg_t sim_t::get_mem(const std::vector<std::string>& args)
+std::pair<reg_t, reg_t> sim_t::get_mem(const std::vector<std::string>& args)
 {
   if (args.size() != 1 && args.size() != 2)
     throw trap_interactive();
@@ -456,24 +472,25 @@ reg_t sim_t::get_mem(const std::vector<std::string>& args)
     addr_str = args[1];
   }
 
-  reg_t addr = strtol(addr_str.c_str(),NULL,16), val;
+  reg_t addr = strtol(addr_str.c_str(),NULL,16);
+  std::pair<reg_t, reg_t> val;
   if (addr == LONG_MAX)
     addr = strtoul(addr_str.c_str(),NULL,16);
 
   switch(addr % 8)
   {
     case 0:
-      val = mmu->load_uint64(addr).first;
+      val = mmu->load_uint64(addr);
       break;
     case 4:
-      val = mmu->load_uint32(addr).first;
+      val = mmu->load_uint32(addr);
       break;
     case 2:
     case 6:
-      val = mmu->load_uint16(addr).first;
+      val = mmu->load_uint16(addr);
       break;
     default:
-      val = mmu->load_uint8(addr).first;
+      val = mmu->load_uint8(addr);
       break;
   }
   return val;
@@ -482,10 +499,11 @@ reg_t sim_t::get_mem(const std::vector<std::string>& args)
 void sim_t::interactive_mem(const std::string& cmd, const std::vector<std::string>& args)
 {
   int max_xlen = procs[0]->get_isa().get_max_xlen();
-
+  auto vals = get_mem(args);
   std::ostream out(sout_.rdbuf());
   out << std::hex << "0x" << std::setfill('0') << std::setw(max_xlen/4)
-      << zext(get_mem(args), max_xlen) << std::endl;
+      << zext(vals.first, max_xlen) << " 0x" << std::setfill('0')
+      << std::setw(max_xlen/4) << zext(vals.second, max_xlen) << std::endl;
 }
 
 void sim_t::interactive_str(const std::string& cmd, const std::vector<std::string>& args)
@@ -561,7 +579,7 @@ void sim_t::interactive_until(const std::string& cmd, const std::vector<std::str
   {
     try
     {
-      reg_t current = (this->*func)(args2);
+      reg_t current = ((this->*func)(args2)).first;
 
       // mask bits above max_xlen
       if (max_xlen == 32) current &= 0xFFFFFFFF;
