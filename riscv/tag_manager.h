@@ -103,8 +103,8 @@ class tag_manager_t {
 
 
 		template<typename T>
-		void load(const uint8_t pc_addr_tag, T tag_bytes, reg_t rd, uint8_t rs,
-			bool f = false);
+		void load(const uint8_t pc_addr_tag, const reg_t addr, T tag_bytes,
+			reg_t rd, uint8_t rs, bool f = false);
 
 		template<typename T>
 		T store(const uint8_t pc_addr_tag, const reg_t store_addr,

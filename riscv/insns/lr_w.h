@@ -1,5 +1,6 @@
 require_extension('A');
-auto res = MMU.load_int32(RS1, true);
-TAG.load<int32_t>(pc_tag, res.second, TAG_DEST, TAG_RS1);
-MMU.acquire_load_reservation(RS1);
+reg_t addr = RS1;
+auto res = MMU.load_int32(addr, true);
+TAG.load<int32_t>(pc_tag, addr, res.second, TAG_DEST, TAG_RS1);
+MMU.acquire_load_reservation(addr);
 WRITE_RD(res.first);

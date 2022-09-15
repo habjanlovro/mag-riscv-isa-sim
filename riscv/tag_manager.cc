@@ -426,8 +426,8 @@ void tag_manager_t::jump(const uint8_t pc_addr_tag, const reg_t jmp_addr,
 }
 
 template<typename T>
-void tag_manager_t::load(const uint8_t pc_addr_tag, T tag_bytes, reg_t rd,
-		uint8_t rs, bool f) {
+void tag_manager_t::load(const uint8_t pc_addr_tag, const reg_t addr,
+		T tag_bytes, reg_t rd, uint8_t rs, bool f) {
 	if (enabled) {
 		uint8_t new_tag = memory->lca(pc_tag, pc_addr_tag);
 		new_tag = memory->lca(new_tag, rs);
@@ -436,7 +436,10 @@ void tag_manager_t::load(const uint8_t pc_addr_tag, T tag_bytes, reg_t rd,
 			new_tag = memory->lca(new_tag, tag);
 		}
 		if (new_tag == TAG_INVALID) {
-			throw std::runtime_error("Error load()! lca(PC, RS, *mem) invalid tag!");
+			std::ostringstream oss;
+			oss << "Error load()! lca(PC, RS, *mem) invalid tag! Address: 0x"
+				<< std::hex << addr << std::dec << std::endl;
+			throw std::runtime_error(oss.str());
 		}
 		if (f) {
 			FPR_tags.write(rd, new_tag);
@@ -446,15 +449,15 @@ void tag_manager_t::load(const uint8_t pc_addr_tag, T tag_bytes, reg_t rd,
 	}
 }
 
-template void tag_manager_t::load<uint8_t>(const uint8_t pc_addr_tag, uint8_t tag_bytes, reg_t rd, uint8_t rs, bool f);
-template void tag_manager_t::load<int8_t>(const uint8_t pc_addr_tag, int8_t tag_bytes, reg_t rd, uint8_t rs, bool f);
-template void tag_manager_t::load<uint16_t>(const uint8_t pc_addr_tag, uint16_t tag_bytes, reg_t rd, uint8_t rs, bool f);
-template void tag_manager_t::load<int16_t>(const uint8_t pc_addr_tag, int16_t tag_bytes, reg_t rd, uint8_t rs, bool f);
-template void tag_manager_t::load<uint32_t>(const uint8_t pc_addr_tag, uint32_t tag_bytes, reg_t rd, uint8_t rs, bool f);
-template void tag_manager_t::load<int32_t>(const uint8_t pc_addr_tag, int32_t tag_bytes, reg_t rd, uint8_t rs, bool f);
-template void tag_manager_t::load<uint64_t>(const uint8_t pc_addr_tag, uint64_t tag_bytes, reg_t rd, uint8_t rs, bool f);
-template void tag_manager_t::load<int64_t>(const uint8_t pc_addr_tag, int64_t tag_bytes, reg_t rd, uint8_t rs, bool f);
-template void tag_manager_t::load<uint128_t>(const uint8_t pc_addr_tag, uint128_t tag_bytes, reg_t rd, uint8_t rs, bool f);
+template void tag_manager_t::load<uint8_t>(const uint8_t pc_addr_tag, const reg_t addr, uint8_t tag_bytes, reg_t rd, uint8_t rs, bool f);
+template void tag_manager_t::load<int8_t>(const uint8_t pc_addr_tag, const reg_t addr, int8_t tag_bytes, reg_t rd, uint8_t rs, bool f);
+template void tag_manager_t::load<uint16_t>(const uint8_t pc_addr_tag, const reg_t addr, uint16_t tag_bytes, reg_t rd, uint8_t rs, bool f);
+template void tag_manager_t::load<int16_t>(const uint8_t pc_addr_tag, const reg_t addr, int16_t tag_bytes, reg_t rd, uint8_t rs, bool f);
+template void tag_manager_t::load<uint32_t>(const uint8_t pc_addr_tag, const reg_t addr, uint32_t tag_bytes, reg_t rd, uint8_t rs, bool f);
+template void tag_manager_t::load<int32_t>(const uint8_t pc_addr_tag, const reg_t addr, int32_t tag_bytes, reg_t rd, uint8_t rs, bool f);
+template void tag_manager_t::load<uint64_t>(const uint8_t pc_addr_tag, const reg_t addr, uint64_t tag_bytes, reg_t rd, uint8_t rs, bool f);
+template void tag_manager_t::load<int64_t>(const uint8_t pc_addr_tag, const reg_t addr, int64_t tag_bytes, reg_t rd, uint8_t rs, bool f);
+template void tag_manager_t::load<uint128_t>(const uint8_t pc_addr_tag, const reg_t addr, uint128_t tag_bytes, reg_t rd, uint8_t rs, bool f);
 
 
 template<typename T>
@@ -517,7 +520,7 @@ template uint128_t tag_manager_t::store<uint128_t>(const uint8_t pc_addr_tag, co
 template<typename T>
 T tag_manager_t::amo(const uint8_t pc_addr_tag, const reg_t addr, const T load_tag,
 		const reg_t rd, const uint8_t rs1, const uint8_t rs2) {
-	load<T>(pc_addr_tag, load_tag, rd, rs1);
+	load<T>(pc_addr_tag, addr, load_tag, rd, rs1);
 	T result = store<T>(pc_addr_tag, addr, rs1, rs2);
 	XPR_tags.write(rd, (uint8_t) result);
 	return result;
