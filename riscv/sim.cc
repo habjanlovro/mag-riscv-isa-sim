@@ -424,9 +424,13 @@ void sim_t::write_chunk(addr_t taddr, size_t len, const void* src, const void* s
   target_endian<uint64_t> data_tag;
   memcpy(&data, src, sizeof data);
   memcpy(&data_tag, src_tag, sizeof data_tag);
+#if defined(TAG_MEM_LOOSE) || defined(TAG_MEM_STRICT)
   auto l = debug_mmu->load_uint64(taddr);
-  // TODO how to handle this
-  uint64_t tag = debug_mmu->from_target(data_tag); //tag_memory->check(l.second, debug_mmu->from_target(data_tag));
+  uint64_t tag = tag_memory->store_chunk_check(
+    l.second, debug_mmu->from_target(data_tag));
+#else
+  uint64_t tag = debug_mmu->from_target(data_tag);
+#endif
   debug_mmu->store_uint64(taddr,
     std::make_pair(debug_mmu->from_target(data), tag));
 }

@@ -129,8 +129,11 @@
 /* Enable support for tag checking the tags of jump address */
 #undef TAG_JUMP_CHECK
 
-/* Enable support for tag checking the memory regions on stores */
-#undef TAG_MEM_CHECK
+/* Enable loose tag checking on stores */
+#undef TAG_MEM_LOOSE
+
+/* Enable strict tag checking on stores */
+#undef TAG_MEM_STRICT
 
 /* Default value for --target switch */
 #undef TARGET_ARCH

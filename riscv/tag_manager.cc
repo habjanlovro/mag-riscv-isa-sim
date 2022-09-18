@@ -222,6 +222,8 @@ bool tag_memory_t::pg_out(int fd, reg_t addr, const std::vector<uint8_t>& data) 
 		for (auto& tag : data) {
 			auto check = lca(pg.tag, tag);
 			if (!is_descendant(tag, pg.tag)) {
+				std::cerr << "Failed PG '" <<  pg.name << "' at 0x" << std::hex
+					<< addr << std::dec << std::endl;
 				return false;
 			}
 		}
@@ -242,21 +244,22 @@ void tag_memory_t::unregister_fd(int fd) {
 	active_perimiter_guards.erase(fd);
 }
 
-uint64_t tag_memory_t::check(uint64_t lhs, uint64_t rhs) {
+uint64_t tag_memory_t::store_chunk_check(uint64_t curr_tag, uint64_t new_tag) {
 	if (!enabled) {
 		return 0;
 	}
-	uint64_t tag = 0;
-	tag |= (uint64_t) lca((uint8_t) (lhs >> 56), (uint8_t)(rhs >> 56)) << 56;
-	tag |= (uint64_t) lca((uint8_t) (lhs >> 48), (uint8_t) (rhs >> 48)) << 48;
-	tag |= (uint64_t) lca((uint8_t) (lhs >> 40), (uint8_t) (rhs >> 40)) << 40;
-	tag |= (uint64_t) lca((uint8_t) (lhs >> 32), (uint8_t) (rhs >> 32)) << 32;
-	tag |= (uint64_t) lca((uint8_t) (lhs >> 24), (uint8_t) (rhs >> 24)) << 24;
-	tag |= (uint64_t) lca((uint8_t) (lhs >> 16), (uint8_t) (rhs >> 16)) << 16;
-	tag |= (uint64_t) lca((uint8_t) (lhs >> 8), (uint8_t) (rhs >> 8)) << 8;
-	tag |= (uint64_t) lca((uint8_t) lhs, (uint8_t) rhs);
-
-	return tag;
+	uint64_t r_tag = 0;
+	for (size_t i = 0; i < sizeof(uint64_t); i++) {
+		uint8_t c_tag = (uint8_t) (curr_tag >> (8 * i));
+		uint8_t n_tag = (uint8_t) (new_tag >> (8 * i));
+#ifdef TAG_MEM_STRICT
+		if (!is_descendant(c_tag, n_tag)) {
+			throw std::runtime_error("Error store_chunk()!");
+		}
+#endif
+		r_tag |= (uint64_t) lca(c_tag, n_tag) << (8 * i);
+	}
+	return r_tag;
 }
 
 
@@ -467,7 +470,7 @@ T tag_manager_t::store(const uint8_t pc_addr_tag, const reg_t store_addr,
 		uint8_t new_tag = memory->lca(pc_tag, pc_addr_tag);
 		new_tag = memory->lca(new_tag, rs1);
 		new_tag = memory->lca(new_tag, rs2);
-#ifdef TAG_MEM_CHECK
+#if defined(TAG_MEM_LOOSE) || defined(TAG_MEM_STRICT)
 		T load_curr_tag;
 		switch (sizeof load_curr_tag) {
 			case 1:
@@ -493,10 +496,15 @@ T tag_manager_t::store(const uint8_t pc_addr_tag, const reg_t store_addr,
 			uint8_t tag = load_curr_tag >> (8 * i);
 			tag_curr = memory->lca(tag_curr, tag);
 		}
-		// TODO do we throw or raise the tag status (similiar to jump)?
+#ifdef TAG_MEM_STRICT
 		if (!memory->is_descendant(tag_curr, new_tag)) {
-			throw std::runtime_error("Error store()! lca(PC, RS1, RS2) invalid tag for MEM location!");
+			std::ostringstream oss;
+			oss << "Error store()! lca(PC, RS1, RS2, MEM) invalid tag! Address 0x"
+				<< std::hex << store_addr;
+			throw std::runtime_error(oss.str());
 		}
+#endif
+		new_tag = memory->lca(new_tag, tag_curr);
 #endif
 		if (new_tag == TAG_INVALID) {
 			std::ostringstream oss;
@@ -541,6 +549,7 @@ void tag_manager_t::print() {
 	std::cout << "PC tag: " << (int) pc_tag << std::endl;
 }
 
+// TODO kako upoštevamo unknown?
 inline bool tag_memory_t::is_descendant(const uint8_t lhs, const uint8_t rhs) {
 	return lca(lhs, rhs) != TAG_INVALID && lca(lhs, rhs) == rhs;
 }

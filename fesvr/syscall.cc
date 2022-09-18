@@ -253,10 +253,12 @@ reg_t syscall_t::sys_write(reg_t fd, reg_t pbuf, reg_t len, reg_t a3, reg_t a4, 
   std::vector<char> buf(len);
   std::vector<uint8_t> tag_buf(len);
   memif->read(pbuf, len, buf.data(), tag_buf.data());
+  for (size_t i = 0; i < len; i++) {
+    std::cerr << buf[i] << " " << (int) tag_buf[i] << std::endl;
+  }
   int actual_fd = fds.lookup(fd);
   if (htif->get_tag_memory()) {
     if (!htif->get_tag_memory()->pg_out(actual_fd, pbuf, tag_buf)) {
-      std::cerr << "Failed PG at 0x" << std::hex << pbuf << std::dec << " Length: " << len << std::endl;
       return sysret_errno(-1);
     }
   }
@@ -272,7 +274,6 @@ reg_t syscall_t::sys_pwrite(reg_t fd, reg_t pbuf, reg_t len, reg_t off, reg_t a4
   int actual_fd = fds.lookup(fd);
   if (htif->get_tag_memory()) {
     if (!htif->get_tag_memory()->pg_out(actual_fd, pbuf, tag_buf)) {
-      std::cerr << "Failed PG at 0x" << std::hex << pbuf << std::dec << " Length: " << len << std::endl;
       return sysret_errno(-1);
     }
   }
@@ -391,7 +392,6 @@ reg_t syscall_t::sys_fstatat(reg_t dirfd, reg_t pname, reg_t len, reg_t pbuf, re
 
 reg_t syscall_t::sys_faccessat(reg_t dirfd, reg_t pname, reg_t len, reg_t mode, reg_t a4, reg_t a5, reg_t a6)
 {
-  std::cerr << "sys_facessat" << std::endl;
   std::vector<char> name(len), tag_name(len);
   memif->read(pname, len, name.data(), tag_name.data());
   return sysret_errno(AT_SYSCALL(faccessat, dirfd, name.data(), mode, 0));
@@ -432,7 +432,6 @@ reg_t syscall_t::sys_mkdirat(reg_t dirfd, reg_t pname, reg_t len, reg_t mode, re
 
 reg_t syscall_t::sys_getcwd(reg_t pbuf, reg_t size, reg_t a2, reg_t a3, reg_t a4, reg_t a5, reg_t a6)
 {
-  std::cerr << "sys_getcwd" << std::endl;
   std::vector<char> buf(size), tag_buf(size, 0);
   char* ret = getcwd(buf.data(), size);
   if (ret == NULL)

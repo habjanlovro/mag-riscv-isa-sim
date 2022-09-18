@@ -65,7 +65,7 @@ class tag_memory_t : public simif_t {
 
 		inline bool is_descendant(const uint8_t lhs, const uint8_t rhs);
 
-		uint64_t check(uint64_t lhs, uint64_t rhs);
+		uint64_t store_chunk_check(uint64_t lhs, uint64_t rhs);
 
 		bool enabled;
 	private:

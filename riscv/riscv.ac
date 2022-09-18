@@ -69,7 +69,12 @@ AS_IF([test "x$enable_tag_jump_check" = "xyes"], [
   AC_DEFINE([TAG_JUMP_CHECK],,[Enable support for tag checking the tags of jump address])
 ])
 
-AC_ARG_ENABLE([tag-mem-check], AS_HELP_STRING([--enable-tag-mem-check], [Enable support for tag checking the memory regions on stores]))
-AS_IF([test "x$enable_tag_mem_check" = "xyes"], [
-  AC_DEFINE([TAG_MEM_CHECK],,[Enable support for tag checking the memory regions on stores])
+AC_ARG_ENABLE([tag-mem-strict], AS_HELP_STRING([--enable-tag-mem-strict], [Enable strict tag checking on stores]))
+AS_IF([test "x$enable_tag_mem_strict" = "xyes"], [
+  AC_DEFINE([TAG_MEM_STRICT],,[Enable strict tag checking on stores])
+])
+
+AC_ARG_ENABLE([tag-mem-loose], AS_HELP_STRING([--enable-tag-mem-loose], [Enable loose tag checking on stores]))
+AS_IF([test "x$enable_tag_mem_loose" = "xyes"], [
+  AC_DEFINE([TAG_MEM_LOOSE],,[Enable loose tag checking on stores])
 ])
