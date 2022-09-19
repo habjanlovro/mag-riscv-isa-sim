@@ -44,8 +44,8 @@
 #define CLEAR 3
 #define CSRRx(type, dst, csr, src) (0x73 | ((type) << 12) | ((dst) << 7) | ((src) << 15) | (uint32_t)((csr) << 20))
 
-#define get_field(reg, mask) (((reg) & (mask)) / ((mask) & ~((mask) << 1)))
-#define set_field(reg, mask, val) (((reg) & ~(mask)) | (((val) * ((mask) & ~((mask) << 1))) & (mask)))
+#define dtm_get_field(reg, mask) (((reg) & (mask)) / ((mask) & ~((mask) << 1)))
+#define dtm_set_field(reg, mask, val) (((reg) & ~(mask)) | (((val) * ((mask) & ~((mask) << 1))) & (mask)))
 
 #define RUN_AC_OR_DIE(a, b, c, d, e) { \
     uint32_t cmderr = run_abstract_command(a, b, c, d, e);      \
@@ -79,21 +79,21 @@ void dtm_t::nop()
 
 void dtm_t::select_hart(int hartsel) {
   int dmcontrol = read(DMI_DMCONTROL);
-  write (DMI_DMCONTROL, set_field(dmcontrol, DMI_DMCONTROL_HARTSEL, hartsel));
+  write (DMI_DMCONTROL, dtm_set_field(dmcontrol, DMI_DMCONTROL_HARTSEL, hartsel));
   current_hart = hartsel;
 }
 
 int dtm_t::enumerate_harts() {
   int max_hart = (1 << DMI_DMCONTROL_HARTSEL_LENGTH) - 1;
-  write(DMI_DMCONTROL, set_field(read(DMI_DMCONTROL), DMI_DMCONTROL_HARTSEL, max_hart));
+  write(DMI_DMCONTROL, dtm_set_field(read(DMI_DMCONTROL), DMI_DMCONTROL_HARTSEL, max_hart));
   read(DMI_DMSTATUS);
-  max_hart = get_field(read(DMI_DMCONTROL), DMI_DMCONTROL_HARTSEL);
+  max_hart = dtm_get_field(read(DMI_DMCONTROL), DMI_DMCONTROL_HARTSEL);
 
   int hartsel;
   for (hartsel = 0; hartsel <= max_hart; hartsel++) {
     select_hart(hartsel);
     int dmstatus = read(DMI_DMSTATUS);
-    if (get_field(dmstatus, DMI_DMSTATUS_ANYNONEXISTENT))
+    if (dtm_get_field(dmstatus, DMI_DMSTATUS_ANYNONEXISTENT))
       break;
   }
   return hartsel;
@@ -108,12 +108,12 @@ void dtm_t::halt(int hartsel)
   }
 
   int dmcontrol = DMI_DMCONTROL_HALTREQ | DMI_DMCONTROL_DMACTIVE;
-  dmcontrol = set_field(dmcontrol, DMI_DMCONTROL_HARTSEL, hartsel);
+  dmcontrol = dtm_set_field(dmcontrol, DMI_DMCONTROL_HARTSEL, hartsel);
   write(DMI_DMCONTROL, dmcontrol);
   int dmstatus;
   do {
     dmstatus = read(DMI_DMSTATUS);
-  } while(get_field(dmstatus, DMI_DMSTATUS_ALLHALTED) == 0);
+  } while(dtm_get_field(dmstatus, DMI_DMSTATUS_ALLHALTED) == 0);
   dmcontrol &= ~DMI_DMCONTROL_HALTREQ;
   write(DMI_DMCONTROL, dmcontrol);
   // Read dmstatus to avoid back-to-back writes to dmcontrol.
@@ -124,12 +124,12 @@ void dtm_t::halt(int hartsel)
 void dtm_t::resume(int hartsel)
 {
   int dmcontrol = DMI_DMCONTROL_RESUMEREQ | DMI_DMCONTROL_DMACTIVE;
-  dmcontrol = set_field(dmcontrol, DMI_DMCONTROL_HARTSEL, hartsel);
+  dmcontrol = dtm_set_field(dmcontrol, DMI_DMCONTROL_HARTSEL, hartsel);
   write(DMI_DMCONTROL, dmcontrol);
   int dmstatus;
   do {
     dmstatus = read(DMI_DMSTATUS);
-  } while (get_field(dmstatus, DMI_DMSTATUS_ALLRESUMEACK) == 0);
+  } while (dtm_get_field(dmstatus, DMI_DMSTATUS_ALLRESUMEACK) == 0);
   dmcontrol &= ~DMI_DMCONTROL_RESUMEREQ;
   write(DMI_DMCONTROL, dmcontrol);
   // Read dmstatus to avoid back-to-back writes to dmcontrol.
@@ -184,8 +184,8 @@ uint32_t dtm_t::run_abstract_command(uint32_t command,
     write(DMI_PROGBUF0 + i, program[i]);
   }
 
-  if (get_field(command, AC_ACCESS_REGISTER_WRITE) &&
-      get_field(command, AC_ACCESS_REGISTER_TRANSFER)) {
+  if (dtm_get_field(command, AC_ACCESS_REGISTER_WRITE) &&
+      dtm_get_field(command, AC_ACCESS_REGISTER_TRANSFER)) {
     for (size_t i = 0; i < data_n; i++) {
       write(DMI_DATA0 + i, data[i]);
     }
@@ -199,14 +199,14 @@ uint32_t dtm_t::run_abstract_command(uint32_t command,
     abstractcs = read(DMI_ABSTRACTCS);
   } while (abstractcs & DMI_ABSTRACTCS_BUSY);
 
-  if ((get_field(command, AC_ACCESS_REGISTER_WRITE) == 0) &&
-      get_field(command, AC_ACCESS_REGISTER_TRANSFER)) {
+  if ((dtm_get_field(command, AC_ACCESS_REGISTER_WRITE) == 0) &&
+      dtm_get_field(command, AC_ACCESS_REGISTER_TRANSFER)) {
     for (size_t i = 0; i < data_n; i++){
       data[i] = read(DMI_DATA0 + i);
     }
   }
   
-  return get_field(abstractcs, DMI_ABSTRACTCS_CMDERR);
+  return dtm_get_field(abstractcs, DMI_ABSTRACTCS_CMDERR);
 
 }
 
@@ -328,8 +328,8 @@ void dtm_t::write_chunk(uint64_t taddr, size_t len, const void* src, const void*
     do {
       abstractcs = read(DMI_ABSTRACTCS);
     } while (abstractcs & DMI_ABSTRACTCS_BUSY);
-    if ( get_field(abstractcs, DMI_ABSTRACTCS_CMDERR)) {
-      die(get_field(abstractcs, DMI_ABSTRACTCS_CMDERR));
+    if ( dtm_get_field(abstractcs, DMI_ABSTRACTCS_CMDERR)) {
+      die(dtm_get_field(abstractcs, DMI_ABSTRACTCS_CMDERR));
     }
   }
   if ((len * 8 / xlen) > 1) {
@@ -565,17 +565,17 @@ void dtm_t::producer_thread()
     
   // These are checked every time we run an abstract command.
   uint32_t abstractcs = read(DMI_ABSTRACTCS);
-  ram_words = get_field(abstractcs, DMI_ABSTRACTCS_PROGSIZE);
-  data_words = get_field(abstractcs, DMI_ABSTRACTCS_DATACOUNT);
+  ram_words = dtm_get_field(abstractcs, DMI_ABSTRACTCS_PROGSIZE);
+  data_words = dtm_get_field(abstractcs, DMI_ABSTRACTCS_DATACOUNT);
 
   // These things are only needed for the 'modify_csr' function.
   // That could be re-written to not use these at some performance
   // overhead.
   uint32_t hartinfo = read(DMI_HARTINFO);
-  assert(get_field(hartinfo, DMI_HARTINFO_NSCRATCH) > 0);
-  assert(get_field(hartinfo, DMI_HARTINFO_DATAACCESS));
+  assert(dtm_get_field(hartinfo, DMI_HARTINFO_NSCRATCH) > 0);
+  assert(dtm_get_field(hartinfo, DMI_HARTINFO_DATAACCESS));
 
-  data_base = get_field(hartinfo, DMI_HARTINFO_DATAADDR);
+  data_base = dtm_get_field(hartinfo, DMI_HARTINFO_DATAADDR);
   
   num_harts = enumerate_harts();
   halt(0);
