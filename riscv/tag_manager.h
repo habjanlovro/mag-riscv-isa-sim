@@ -72,8 +72,8 @@ class tag_memory_t : public simif_t {
 		std::vector<std::vector<uint8_t>> policy;
 		std::map<int, std::string> names;
 		std::vector<tag_region_data_t> tagged_data;
-		std::map<int, tag_pg_t> active_perimiter_guards;
-		std::vector<tag_pg_t> perimiter_guards;
+		std::map<int, tag_pg_t> active_perimeter_guards;
+		std::vector<tag_pg_t> perimeter_guards;
 		bus_t *bus;
 		int tag_fd;
 };

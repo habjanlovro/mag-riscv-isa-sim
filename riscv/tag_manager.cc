@@ -25,7 +25,7 @@ static std::string parse_name(std::stringstream& ss) {
 		r += c;
 	}
 	if (r.size() == 0) {
-		throw std::runtime_error("Missing name for perimiter guard!");
+		throw std::runtime_error("Missing name for perimeter guard!");
 	}
 	return r;
 }
@@ -40,7 +40,7 @@ static std::string parse_file(std::stringstream& ss) {
 		r += c;
 	}
 	if (r.size() == 0) {
-		throw std::runtime_error("Missing file for perimiter guard!");
+		throw std::runtime_error("Missing file for perimeter guard!");
 	}
 	return r;
 }
@@ -91,7 +91,7 @@ tag_memory_t::tag_memory_t(
 		}
 	}
 
-	// perimiter guards
+	// perimeter guards
 	for (int i = 0; i < num_pgs; i++) {
 		line_num++;
 
@@ -103,7 +103,7 @@ tag_memory_t::tag_memory_t(
 		uint8_t tag = parse_tag(line_stream);
 
 		tag_pg_t pg(name, file, tag);
-		perimiter_guards.push_back(pg);
+		perimeter_guards.push_back(pg);
 	}
 	while (std::getline(policy_file_stream, line)) {
 		line_num++;
@@ -206,7 +206,7 @@ std::vector<uint8_t> tag_memory_t::pg_in(int fd, reg_t pbuf, reg_t len) {
 		return std::vector<uint8_t>(len, 0);
 	}
 	try {
-		auto pg = active_perimiter_guards.at(fd);
+		auto pg = active_perimeter_guards.at(fd);
 		return std::vector<uint8_t>(len, pg.tag);
 	} catch (...) {
 		return std::vector<uint8_t>(len, 0);
@@ -218,7 +218,7 @@ bool tag_memory_t::pg_out(int fd, reg_t addr, const std::vector<uint8_t>& data) 
 		return true;
 	}
 	try {
-		auto pg = active_perimiter_guards.at(fd);
+		auto pg = active_perimeter_guards.at(fd);
 		for (auto& tag : data) {
 			auto check = lca(pg.tag, tag);
 			if (!is_descendant(tag, pg.tag)) {
@@ -232,16 +232,16 @@ bool tag_memory_t::pg_out(int fd, reg_t addr, const std::vector<uint8_t>& data) 
 }
 
 void tag_memory_t::register_fd(const std::string& file, int fd) {
-	for (auto& pg : perimiter_guards) {
+	for (auto& pg : perimeter_guards) {
 		if (pg.file == file) {
-			active_perimiter_guards[fd] = pg;
+			active_perimeter_guards[fd] = pg;
 			break;
 		}
 	}
 }
 
 void tag_memory_t::unregister_fd(int fd) {
-	active_perimiter_guards.erase(fd);
+	active_perimeter_guards.erase(fd);
 }
 
 uint64_t tag_memory_t::store_chunk_check(uint64_t curr_tag, uint64_t new_tag) {
