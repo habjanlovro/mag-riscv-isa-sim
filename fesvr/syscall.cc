@@ -253,9 +253,9 @@ reg_t syscall_t::sys_write(reg_t fd, reg_t pbuf, reg_t len, reg_t a3, reg_t a4, 
   std::vector<char> buf(len);
   std::vector<uint8_t> tag_buf(len);
   memif->read(pbuf, len, buf.data(), tag_buf.data());
-  for (size_t i = 0; i < len; i++) {
-    std::cerr << buf[i] << " " << (int) tag_buf[i] << std::endl;
-  }
+  // for (size_t i = 0; i < len; i++) {
+  //   std::cerr << buf[i] << " " << (int) tag_buf[i] << std::endl;
+  // }
   int actual_fd = fds.lookup(fd);
   if (htif->get_tag_memory()) {
     if (!htif->get_tag_memory()->pg_out(actual_fd, pbuf, tag_buf)) {

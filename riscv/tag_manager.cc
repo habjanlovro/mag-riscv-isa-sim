@@ -222,8 +222,8 @@ bool tag_memory_t::pg_out(int fd, reg_t addr, const std::vector<uint8_t>& data) 
 		for (auto& tag : data) {
 			auto check = lca(pg.tag, tag);
 			if (!is_descendant(tag, pg.tag)) {
-				std::cerr << "Failed PG '" <<  pg.name << "' at 0x" << std::hex
-					<< addr << std::dec << std::endl;
+				// std::cerr << "Failed PG '" <<  pg.name << "' at 0x" << std::hex
+				// 	<< addr << std::dec << std::endl;
 				return false;
 			}
 		}
@@ -359,7 +359,7 @@ void tag_manager_t::propagate_branch(const uint8_t pc_addr_tag,
 		}
 		pc_tag = new_tag;
 	}
-};
+}
 
 void tag_manager_t::propagate_branch(const uint8_t pc_addr_tag,
 		const reg_t jmp_addr, const uint8_t rs1) {

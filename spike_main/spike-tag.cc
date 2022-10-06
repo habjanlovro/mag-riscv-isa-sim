@@ -557,13 +557,19 @@ int main(int argc, char** argv)
   auto return_code = s.run();
   auto end_time = std::chrono::high_resolution_clock::now();
 
-  // std::cerr << "Time: "
-  //   << std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count()
-  //   << std::endl;
+  auto time_mili = std::chrono::duration_cast<std::chrono::milliseconds>
+    (end_time - start_time).count();
 
-  // if (s.get_core(0)->get_tag_manager()) {
-  //   s.get_core(0)->get_tag_manager()->print();
-  // }
+  std::ofstream time_file;
+  if (tag_memory->enabled) {
+    time_file.open("time-tags.out", std::ios_base::app);
+  } else {
+    time_file.open("time-no-tags.out", std::ios_base::app);
+  }
+  if (time_file.is_open()) {
+    time_file << time_mili << std::endl;
+    time_file.close();
+  }
 
   for (auto& mem : mems)
     delete mem.second;
