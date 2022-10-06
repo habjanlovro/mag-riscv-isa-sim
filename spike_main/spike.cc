@@ -524,12 +524,12 @@ int main(int argc, char** argv)
   auto start_time = std::chrono::high_resolution_clock::now();
   auto return_code = s.run();
   auto end_time = std::chrono::high_resolution_clock::now();
-  auto time_mili =  std::chrono::duration_cast<std::chrono::milliseconds>
+  auto time_nano =  std::chrono::duration_cast<std::chrono::nanoseconds>
     (end_time - start_time).count();
 
   std::ofstream time_file("time.out", std::ios_base::app);
   if (time_file.is_open()) {
-    time_file << time_mili << std::endl;
+    time_file << time_nano << std::endl;
   }
 
   for (auto& mem : mems)
