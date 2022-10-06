@@ -524,10 +524,13 @@ int main(int argc, char** argv)
   auto start_time = std::chrono::high_resolution_clock::now();
   auto return_code = s.run();
   auto end_time = std::chrono::high_resolution_clock::now();
+  auto time_mili =  std::chrono::duration_cast<std::chrono::milliseconds>
+    (end_time - start_time).count();
 
-  std::cerr << "Time: "
-    << std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count()
-    << std::endl;
+  std::ofstream time_file("time.out", std::ios_base::app);
+  if (time_file.is_open()) {
+    time_file << time_mili << std::endl;
+  }
 
   for (auto& mem : mems)
     delete mem.second;
