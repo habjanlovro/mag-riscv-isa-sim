@@ -225,10 +225,11 @@ static reg_t sysret_errno(sreg_t ret)
 reg_t syscall_t::sys_read(reg_t fd, reg_t pbuf, reg_t len, reg_t a3, reg_t a4, reg_t a5, reg_t a6)
 {
   std::vector<char> buf(len);
+  int found_fd = fds.lookup(fd);
   std::vector<uint8_t> tag_buf = (htif->get_tag_memory()) ?
-    htif->get_tag_memory()->pg_in(fd, pbuf, len) :
+    htif->get_tag_memory()->pg_in(found_fd, pbuf, len) :
     std::vector<uint8_t>(len, 0);
-  ssize_t ret = read(fds.lookup(fd), buf.data(), len);
+  ssize_t ret = read(found_fd, buf.data(), len);
   reg_t ret_errno = sysret_errno(ret);
   if (ret > 0)
     memif->write(pbuf, ret, buf.data(), tag_buf.data());
