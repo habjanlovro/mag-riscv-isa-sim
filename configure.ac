@@ -15,9 +15,9 @@
 # Project metadata
 #-------------------------------------------------------------------------
 
-m4_define( proj_name,         [RISC-V ISA Simulator])
-m4_define( proj_maintainer,   [Andrew Waterman])
-m4_define( proj_abbreviation, [spike])
+m4_define( proj_name,         [RISC-V ISA Simulator with tagging])
+m4_define( proj_maintainer,   [Lovro Habjan])
+m4_define( proj_abbreviation, [spike-tag])
 
 #-------------------------------------------------------------------------
 # Project version information
