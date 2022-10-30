@@ -59,7 +59,7 @@ Write the tag and policy files and run the tag parser:
 
 Now you can simulate the program atop the proxy kernel:
 
-    $ spike-tag --tag-files=policy.d2sc,tags.d2sc pk hello
+    $ spike-tag --tag-files=policy.mtag,tags.mtag pk hello
 
 
 Interactive Debug Mode
@@ -67,7 +67,7 @@ Interactive Debug Mode
 
 To invoke interactive debug mode, launch spike with -d:
 
-    $ spike-tag --tag-files=policy.d2sc,tags.d2sc -d pk hello
+    $ spike-tag --tag-files=policy.mtag,tags.mtag -d pk hello
 
 To see the contents and the tag of an integer register (0 is for core
 0):
